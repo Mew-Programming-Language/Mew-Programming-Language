@@ -1,7 +1,24 @@
+/*
+	This module is for name validation for types.
+	
+	Authors:
+		Jacob Jensen / Bauss
+	License:
+		Apache License 2.0
+		https://github.com/BaussProjects/Mew-Programming-Language/blob/master/LICENSE
+*/
 module parser.namevalidator;
 
+// Std Imports
 import std.algorithm : canFind, startsWith;
 
+/**
+*	Validates a type name.
+*	Params:
+*		name =		The name to validate.
+*		ignore =	Boolean determining whether it should ignore type-name conflicts.
+*	Returns: True if the name is valid, false otherwise.
+*/
 bool validName(string name, bool ignore = false) {
 	if (ignore) {
 		return (isValidChars(name));
@@ -15,6 +32,9 @@ bool validName(string name, bool ignore = false) {
 	}
 }
 
+/**
+*	Enumeration for datatypes.
+*/
 private enum DTs = [
 	"is", "null", "this", "~this",
 	"byte", "short", "int", "long",
@@ -31,10 +51,23 @@ private enum DTs = [
 	"stack",
 	"queue"
 ];
+
+/**
+*	Checks whether an input string is a datatype.
+*	Params:
+*		S =	The input string.
+*	Returns: True if the input string is a datatype.
+*/
 private bool isDataType(string S) {
 	return canFind(DTs, S);
 }
 
+/**
+*	Checks whether an input string is A-Z, 0-9 and "_"
+*	Params:
+*		S = The input string.
+*	Returns: True if the input string is valid.
+*/
 private bool isValidChars(string S) {
 	foreach (c; S) {
 		if (!(c >= 65 && c <= 90) &&

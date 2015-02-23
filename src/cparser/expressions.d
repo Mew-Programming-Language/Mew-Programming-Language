@@ -3,12 +3,17 @@
 	
 	Authors:
 		Jacob Jensen / Bauss
+	License:
+		Apache License 2.0
+		https://github.com/BaussProjects/Mew-Programming-Language/blob/master/LICENSE
 */
 module cparser.expressions;
 
+// Std Imports
 import std.algorithm : filter;
 import std.array;
 
+// Mew Imports
 import cparser.location;
 
 /**

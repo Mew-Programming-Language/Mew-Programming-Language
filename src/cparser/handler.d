@@ -3,17 +3,21 @@
 	
 	Authors:
 		Jacob Jensen / Bauss
+	License:
+		Apache License 2.0
+		https://github.com/BaussProjects/Mew-Programming-Language/blob/master/LICENSE
 */
 module cparser.handler;
 
+// Std Imports
 import std.algorithm : endsWith;
 import std.string : splitLines, KeepTerminator;
 import std.array : split, replace;
 import std.conv : to;
 
+// Mew Imports
 import errors.report;
 import csettings;
-
 import cparser.location;
 
 /**

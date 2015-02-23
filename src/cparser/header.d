@@ -3,12 +3,17 @@
 	
 	Authors:
 		Jacob Jensen / Bauss
+	License:
+		Apache License 2.0
+		https://github.com/BaussProjects/Mew-Programming-Language/blob/master/LICENSE
 */
 module cparser.header;
 
+// Std Imports
 import std.array : join;
 import std.string : format, toUpper;
 
+// Mew Imports
 import cparser.imports;
 import cparser.variables;
 import cparser.structs;
