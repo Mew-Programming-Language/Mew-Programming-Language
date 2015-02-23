@@ -1,8 +1,11 @@
-# Mew-Programming-Language
+# The Mew Programming Language
 Mew is a programming language written in D and C compiling to native through C using the tcc compiler by default.
 
 ## Goals of Mew
 * An object oriented (by choice) programming language with a strict syntax to ensure clean code and readability.
+* Structs
+* Classes
+* One parent inheritance
 * An easy and user-friendly syntax.
 * ADT's as build-in types rather than libraries.
 * Dynamic arrays (Can be toggled off by using the @traditional attribute)
