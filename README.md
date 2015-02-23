@@ -15,7 +15,7 @@ Mew is a programming language written in D and C compiling to native through C u
 * Full interaction with the standard C library
 * Full interaction with C code
 * No header/definition files -- Module based system
-* Dynamoc proxy compilation (Able to use different C compilers)
+* Dynamic proxy compilation (Able to use different C compilers)
 * Error safety (Exception based system.) + handle all errors as much as possible.
 * Exceptions should be usable by standard C code.
 * Fully open-source -- Everything will be available to the public.
