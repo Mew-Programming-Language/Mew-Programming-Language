@@ -365,3 +365,117 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input) {
 	returnTask[2] = paramTuples;
 	return returnTask;
 }
+
+// name
+/**
+*	Struct tuple
+*/
+alias AStructTuple = Tuple!(string);
+
+/**
+*	Tokenizes a struct.
+*	Params:
+*		fileName =		The file name.
+*		lineNumber =	The current line.
+*		input =			The input to tokenize.
+*	Returns: Struct tuple for the struct.
+*/
+auto tokenizeStruct(string fileName, size_t lineNumber, string input) {
+	AStructTuple errorReturn;
+	errorReturn[0] = null;
+	
+	if (!canFind(input, "(")) {
+		reportError(fileName, lineNumber, "Invalid Struct Syntax", "Cannot find '('");
+		return errorReturn;
+	}
+	if (!endsWith(input, "(:")) {
+		reportError(fileName, lineNumber, "Invalid Struct Syntax", "Does not end with '(:'");
+		return errorReturn;
+	}
+	
+	auto structData = split(input, "(");
+	if (structData.length != 2) {
+		reportError(fileName, lineNumber, "Invalid Struct Syntax", "Multiple '('");
+		return errorReturn;
+	}
+	
+	auto structInfo = split(structData[0], " ");
+	if (structInfo.length != 2) {
+		reportError(fileName, lineNumber, "Invalid Struct Syntax", "Invalid struct information.");
+		return errorReturn;
+	}
+	
+	if (structInfo[0] != "struct") {
+		reportError(fileName, lineNumber, "Invalid Struct Syntax", "Not a struct");
+		return errorReturn;
+	}
+	
+	AStructTuple returnStruct;
+	returnStruct[0] = structInfo[1];
+	return returnStruct;
+}
+
+// name, base
+/**
+*	Class tuple.
+*/
+alias AClassTuple = Tuple!(string,string);
+
+/**
+*	Tokenizes a class.
+*	Params:
+*		fileName =		The file name.
+*		lineNumber =	The current line.
+*		input =			The input to tokenize.
+*	Returns: Class tuple for the class.
+*/
+auto tokenizeClass(string fileName, size_t lineNumber, string input) {
+	AClassTuple errorReturn;
+	errorReturn[0] = null;
+	errorReturn[1] = null;
+	
+	if (!canFind(input, "(")) {
+		reportError(fileName, lineNumber, "Invalid Class Syntax", "Cannot find '('");
+		return errorReturn;
+	}
+	if (!endsWith(input, ":")) {
+		reportError(fileName, lineNumber, "Invalid Class Syntax", "Does not end with ':'");
+		return errorReturn;
+	}
+	
+	auto classData = split(input, "(");
+	if (classData.length != 2) {
+		reportError(fileName, lineNumber, "Invalid Class Syntax", "Multiple '('");
+		return errorReturn;
+	}
+	
+	string baseName;
+	if (classData[1] != ":") {
+		// parameters ...
+		if (!endsWith(classData[1], ":")) {
+			reportError(fileName, lineNumber, "Invalid Class Syntax", "':' location invalid.");
+			return errorReturn;
+		}
+		baseName = classData[1][0 .. $-1];
+	}
+	else if (!endsWith(input, "(:")) { // No bases, but invalid syntax ...
+		reportError(fileName, lineNumber, "Invalid Class Syntax", "Does not end with '(:'");
+		return errorReturn;
+	}
+	
+	auto classInfo = split(classData[0], " ");
+	if (classInfo.length != 2) {
+		reportError(fileName, lineNumber, "Invalid Class Syntax", "Invalid class data!");
+		return errorReturn;
+	}
+	
+	if (classInfo[0] != "class") {
+		reportError(fileName, lineNumber, "Invalid Class Syntax", "Not a class.");
+		return errorReturn;
+	}
+	
+	AClassTuple returnClass;
+	returnClass[0] = classInfo[1];
+	returnClass[1] = baseName;
+	return returnClass;
+}

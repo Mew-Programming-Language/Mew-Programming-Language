@@ -1,15 +1,15 @@
 /*
-	This module is for parsing mew tasks.
+	This module is for parsing mew classes.
 	
 	Authors:
 		Jacob Jensen / Bauss
 */
-module parser.taskparser;
+module parser.classparser;
 
 // Std Imports
 import std.string : format;
 import std.array : replace, split;
-import std.algorithm : strip, canFind;
+import std.algorithm : strip, canFind, startsWith, endsWith;
 
 // Mew Imports
 import errors.report;
@@ -18,17 +18,17 @@ import parser.tokenizer;
 import parser.namevalidator;
 
 /**
-*	Task parser.
+*	Class parser.
 */
-class TaskParser {
+class ClassParser {
 private:
 	/**
-	*	The task.
+	*	The class.
 	*/
-	Task m_task;
+	Class m_class;
 public:
 	/**
-	*	Creates a new instance of TaskParser.
+	*	Creates a new instance of ClassParser.
 	*/
 	this() {
 		// Reserved for future use ...
@@ -36,13 +36,13 @@ public:
 	
 	@property {
 		/**
-		*	Gets the task.
+		*	Gets the Class.
 		*/
-		Task task() { return m_task; }
+		Class cls() { return m_class; }
 	}
 	
 	/**
-	*	Parses a task.
+	*	Parses a class.
 	*	Params:
 	*		fileName =			The file name.
 	*		lineNumber =		(ref) The current line.
@@ -51,7 +51,7 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables, bool isConstructor = false) {
+		Variable[string] inheritedVariables, Class[string] classes) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -115,6 +115,19 @@ public:
 				line = replace(line, k, v); // store information about alias + line later to report errors that are based on aliases
 			}
 			
+			bool isConstructor = false;
+			if (startsWith(line, "this(") && endsWith(line, ":")) { // constructor ...
+				line = "task " ~ line; // makes it valid for parsing ...
+				source[lineNumber] = line;
+				isConstructor = true;
+			}
+			
+			if (startsWith(line, "~this(") && endsWith(line, ":")) { // destructor ...
+				line = "task __free_" ~ line[1 .. $]; // makes it valid for parsing ...
+				source[lineNumber] = line;
+				isConstructor = true;
+			}
+			
 			// Splits the current line by space ... " "
 			scope auto lineSplit = split(line, " ");
 			
@@ -125,42 +138,52 @@ public:
 					break;
 				}
 				
-				case "task": {
-					if (m_task) {
-						reportError(fileName, lineNumber, "Invalid Task Syntax", "Nested tasks are disallowed.");
+				case "class": {
+					if (m_class) {
+						reportError(fileName, lineNumber, "Invalid Class Syntax", "Nested classes are disallowed.");
 						return;
 					}
-					auto tokenized = tokenizeTask(fileName, lineNumber, line);
+					auto tokenized = tokenizeClass(fileName, lineNumber, line);
 					auto name = tokenized[0];
 					if (!name)
 						break;
-					if (!validName(name, isConstructor)) {
-						reportError(fileName, lineNumber, "Invalid Name", "Invalid task name. Make sure it's A-Z and doesn't conflic with keywords.");
+					if (!validName(name)) {
+						reportError(fileName, lineNumber, "Invalid Name", "Invalid class name. Make sure it's A-Z and doesn't conflic with keywords.");
 						return;
 					}
-					auto returnType = tokenized[1];
-					
-					auto parameters = tokenized[2];		
-					Variable[] params;
-					foreach (param; parameters) {
-						import parser.variableparser;
-						scope auto variableParser = new VariableParser!Variable;
-						variableParser.parse2(param, fileName, lineNumber, line, null);
-						if (variableParser.var) {
-							params ~= variableParser.var;
-						}
+					auto parent = tokenized[1];
+					if (!parent)
+						m_class = new Class(name, attributes, inheritedVariables, null);
+					else if (parent in classes) {
+						m_class = new Class(name, attributes, inheritedVariables, classes[parent]);
 					}
-					
-					m_task = new Task(name, returnType, params, attributes, inheritedVariables);
+					else {
+						reportError(fileName, lineNumber, "Invalid Inheritance", format("'%s' cannot inherit '%s', because it wasn't found!", name, parent));
+					}
+					break;
+				}
+				
+				case "task": {
+					size_t cline = lineNumber;
+					import parser.taskparser;
+					scope auto taskParser = new TaskParser();
+					taskParser.parse(
+						fileName, lineNumber, source, attributes, aliases,
+						inheritedVariables, isConstructor
+					);
+					if (taskParser.task) {
+						if (!m_class.addTask(taskParser.task))
+							reportError(fileName, cline, "Duplicate", "Task name conflicting with an earlier local task.");
+					}
 					break;
 				}
 				
 				default: {
 					size_t cline = lineNumber;
 					import parser.variableparser;
-					scope auto variableParser = new VariableParser!Variable;
-					if (variableParser.parse(fileName, lineNumber, line, null) && variableParser.var) {
-						if (!m_task.addVar(variableParser.var))
+					scope auto variableParser = new VariableParser!StructVariable;
+					if (variableParser.parse(fileName, lineNumber, line, attributes) && variableParser.var) {
+						if (!m_class.addVar(variableParser.var))
 							reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");
 					}
 					else {
@@ -173,10 +196,10 @@ public:
 		}
 		// There was no ending statement found and it reached the end of the file ...
 		if (!foundEndStatement) {
-			if (m_task)
-				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing ')' for task '%s'", m_task.name));
+			if (m_class)
+				reportError(fileName, lineNumber, "Invalid Class Syntax", format("Missing ')' for class '%s'", m_class.name));
 			else
-				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
+				reportError(fileName, lineNumber, "Invalid Class Syntax", "Class parsed incorrectly.");
 		}
 	}
 }

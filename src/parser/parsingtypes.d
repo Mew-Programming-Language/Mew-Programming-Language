@@ -27,9 +27,33 @@ private:
 	*/
 	Variable[string] m_globalVariables;
 	/**
+	*	The init variables.
+	*/
+	Variable[string] m_initVariables;
+	/**
 	*	The global tasks.
 	*/
 	Task[string] m_globalTasks;
+	/**
+	*	The init tasks.
+	*/
+	Task[string] m_initTasks;
+	/**
+	*	The structs.
+	*/
+	Struct[string] m_structs;
+	/**
+	*	The init structs.
+	*/
+	Struct[string] m_initStructs;
+	/**
+	*	The classes.
+	*/
+	Class[string] m_classes;
+	/**
+	*	The init classes.
+	*/
+	Class[string] m_initClasses;
 public:
 	/**
 	*	Creates a new instance of Module.
@@ -57,9 +81,39 @@ public:
 		Variable[string] globalVariables() { return m_globalVariables; }
 		
 		/**
+		*	Gets the init variables.
+		*/
+		Variable[string] initVariables() { return m_initVariables; }
+		
+		/**
 		*	Gets the global tasks.
 		*/
 		Task[string] globalTasks() { return m_globalTasks; }
+		
+		/**
+		*	Gets the init tasks.
+		*/
+		Task[string] initTasks() { return m_initTasks; }
+		
+		/**
+		*	Gets the structs.
+		*/
+		Struct[string] structs() { return m_structs; }
+		
+		/**
+		*	Gets the init structs.
+		*/
+		Struct[string] initStructs() { return m_initStructs; }
+		
+		/**
+		*	Gets the classes.
+		*/
+		Class[string] classes() { return m_classes; }
+		
+		/**
+		*	Gets the init classes.
+		*/
+		Class[string] initClasses() { return m_initClasses; }
 	}
 	
 	/**
@@ -79,18 +133,56 @@ public:
 	*	Adds a global variable.
 	*	Params:
 	*		var =	The variable to add.
+	*	Returns: True if the variable was added, false if duplicate.
 	*/
-	void addGlobalVar(Variable var) {
+	bool addGlobalVar(Variable var) {
+		if (var.name in m_initVariables)
+			return false;
 		m_globalVariables[var.name] = var;
+		m_initVariables[var.name] = var;
+		return true;
 	}
 	
 	/**
 	*	Adds a global task.
 	*	Params:
 	*		task =	The task to add.
+	*	Returns: True if the task was added, false if duplicate.
 	*/
-	void addGlobalTask(Task task) {
+	bool addGlobalTask(Task task) {
+		if (task.name in m_initTasks)
+			return false;
 		m_globalTasks[task.name] = task;
+		m_initTasks[task.name] = task;
+		return true;
+	}
+	
+	/**
+	*	Adds a struct.
+	*	Params:
+	*		strc =	The struct to add.
+	*	Returns: True if the struct was added, false if duplicate.
+	*/	
+	bool addStruct(Struct strc) {
+		if (strc.name in m_initStructs)
+			return false;
+		m_structs[strc.name] = strc;
+		m_initStructs[strc.name] = strc;
+		return true;
+	}
+	
+	/**
+	*	Adds a class.
+	*	Params:
+	*		cls =	The class to add.
+	*	Returns: True if the class was added, false if duplicate.
+	*/	
+	bool addClass(Class cls) {
+		if (cls.name in m_classes)
+			return false;
+		m_classes[cls.name] = cls;
+		m_initClasses[cls.name] = cls;
+		return true;
 	}
 	
 	/**
@@ -109,9 +201,9 @@ public:
 		else
 			writeln("\tImports: N/A");
 			
-		if (m_globalVariables) {
+		if (m_initVariables) {
 			writeln("\tGlobal Vars:");
-			foreach (var; m_globalVariables) {
+			foreach (var; m_initVariables) {
 				var.print("\t\t");
 				writeln();
 			}
@@ -119,9 +211,9 @@ public:
 		else
 			writeln("\tGlobal Vars: N/A");
 			
-		if (m_globalTasks) {
+		if (m_initTasks) {
 			writeln("\tGlobal Tasks:");
-			foreach (task; m_globalTasks) {
+			foreach (task; m_initTasks.values) {
 				task.print("\t\t");
 				writeln();
 			}
@@ -129,7 +221,25 @@ public:
 		else
 			writeln("\tGlobal Tasks: N/A");
 		
-		// classes, structs etc.
+		if (m_initStructs) {
+			writeln("\tStructs:");
+			foreach (strc; m_initStructs.values) {
+				strc.print("\t\t");
+				writeln();
+			}
+		}
+		else
+			writeln("\tStructs: N/A");
+			
+		if (m_initClasses) {
+			writeln("\tClasses:");
+			foreach (cls; m_initClasses.values) {
+				cls.print("\t\t");
+				writeln();
+			}
+		}
+		else
+			writeln("\tClasses: N/A");
 	}
 }
 
@@ -282,6 +392,10 @@ private:
 	*/
 	Variable[string] m_variables;
 	/**
+	*	The initialization variables.
+	*/
+	Variable[string] m_initVariables;
+	/**
 	*	The attributes.
 	*/
 	string[] m_attributes;
@@ -301,7 +415,7 @@ public:
 		m_parameters = parameters;
 		m_attributes = attributes;
 		foreach (v; inheritedVariables.values)
-			addVar(v);
+			addVar(v, false);
 		foreach (param; parameters)
 			addVar(param);
 	}
@@ -328,6 +442,11 @@ public:
 		Variable[string] variables() { return m_variables; }
 		
 		/**
+		*	Gets the initialization variables.
+		*/
+		Variable[string] initVariables() { return m_initVariables; }
+		
+		/**
 		*	Gets the attributes.
 		*/
 		string[] attributes() { return m_attributes; }
@@ -336,10 +455,18 @@ public:
 	/**
 	*	Adds a variable to the task.
 	*	Params:
-	*		var =	The variable to add.
+	*		var =		The variable to add.
+	*		isInit =	Boolean determining whether the variable should be initialized as local or not.
+	*	Returns: True if the variable was added, false if duplicate.
 	*/
-	void addVar(Variable var) {
+	bool addVar(Variable var, bool isInit = true) {
+		if (isInit) {
+			if (var.name in m_initVariables)
+				return false;
+			m_initVariables[var.name] = var;
+		}
 		m_variables[var.name] = var;
+		return true;
 	}
 	
 	/**
@@ -365,13 +492,383 @@ public:
 			
 		if (m_variables) {
 			writefln("%s\tVariables:", tabs);
-			foreach (var; m_variables) {
+			foreach (var; m_initVariables.values) {
 				var.print(tabs ~ "\t\t");
 				writeln();
 			}
 		}
 		else
-			writefln("%s\tParameters: N/A", tabs);
+			writefln("%s\tVariables: N/A", tabs);
+			
+		if (m_attributes) {
+			writefln("%s\tAttributes:", tabs);
+			foreach (attr; m_attributes) {
+				writefln("%s\t\t%s", tabs, attr);
+			}
+		}
+		else
+			writefln("%s\tAttributes: N/A", tabs);
+	}
+}
+
+/**
+*	A struct variable.
+*	Note: A struct variable is the same as a normal variable, except for that it has alignment information.
+*/
+class StructVariable : Variable {
+private:
+	/**
+	*	The alignment.
+	*/
+	size_t m_alignment;
+public:
+		/**
+	*	Creates a new instance of StructVariable.
+	*	Params:
+	*		type =				The type.
+	*		name =				The name.
+	*		defaultValue =		The default value. (null for nothing.)
+	*		attributes =		The attributes.
+	*/
+	this(AType type, string name, string defaultValue, string[] attributes) {
+		super(type, name, defaultValue, attributes);
+	}
+	
+	/**
+	*	Creates a new instance of StructVariable.
+	*	Params:
+	*		declaration = 	The declaration.
+	*		type1 =			The first type.
+	*		type2 =			The second type.
+	*		name =			The name.
+	*		attributes =	The attributes.
+	*/
+	this(ATypeDeclaration declaration, AType type1, AType type2, string name, string[] attributes) {
+		super(declaration, type1, type2, name, attributes);
+	}
+	
+	@property {
+		/**
+		*	Gets the alignment.
+		*/
+		size_t alignment() { return m_alignment; }
+		
+		/**
+		*	Sets the alignment in bytes.
+		*	Note: Set through the @align attribute.
+		*	Ex:   @align(10) << places 10 empty bytes after the variable.
+		*/
+		void alignment(size_t newAlignment) {
+			m_alignment = newAlignment;
+		}
+	}
+}
+
+/**
+*	Struct Type
+*/
+class Struct {
+private:
+	/**
+	*	The name.
+	*/
+	string m_name;
+	/**
+	*	The attributes.
+	*/
+	string[] m_attributes;
+	/**
+	*	The variables.
+	*/
+	Variable[string] m_variables;
+	/**
+	*	The child variables.
+	*/
+	StructVariable[string] m_childVariables;
+	/**
+	*	The initialization variables.
+	*/
+	StructVariable[] m_initVariables;
+	/**
+	*	The tasks.
+	*/
+	Task[string] m_tasks;
+	/**
+	*	The initialization tasks.
+	*/
+	Task[string] m_initTasks;
+public:
+	/**
+	*	Creates a new instance of Struct.
+	*	Params:
+	*		name =					The name of the struct.
+	*		attributes =			The attributes.
+	*		inheritedVariables =	The inheritedVariables from parents.
+	*/
+	this(string name, string[] attributes, Variable[string] inheritedVariables) {
+		m_name = name;
+		m_attributes = attributes;
+		foreach (k, v; inheritedVariables)
+			m_variables[k] = v;
+	}
+	
+	@property {
+		/**
+		*	Gets the name.
+		*/
+		string name() { return m_name; }
+
+		/**
+		*	Gets the variables.
+		*/
+		Variable[string] variables() { return m_variables; }
+			/**
+		*	Gets the child variables.
+		*/
+		StructVariable[string] childVariables() { return m_childVariables; }
+		
+		/**
+		*	Gets the initialization variables.
+		*/
+		StructVariable[] initVariables() { return m_initVariables; }
+		
+		/**
+		*	Gets the tasks.
+		*/
+		Task[string] tasks() { return m_tasks; }
+		
+		/**
+		*	Gets the initialization tasks.
+		*/
+		Task[string] initTasks() { return m_initTasks; }
+		
+		/**
+		*	Gets the attributes.
+		*/
+		string[] attributes() { return m_attributes; }
+	}
+	
+	/**
+	*	Adds a variable to the struct.
+	*	Params:
+	*		var =	The variable to add.
+	*	Returns: True if the variable was added, false if duplicate.
+	*/
+	bool addVar(StructVariable var) {
+		if (var.name in m_childVariables)
+			return false;
+		m_childVariables[var.name] = var;
+		m_variables[var.name] = var;
+		m_initVariables ~= var;
+		return true;
+	}
+	
+	/**
+	*	Adds a task to the struct.
+	*	Params:
+	*		var =	The task to add.
+	*	Returns: True if the task was added, false if duplicate.
+	*/
+	bool addTask(Task task) {
+		if (task.name in m_initTasks)
+			return false;
+		m_tasks[task.name] = task;
+		m_initTasks[task.name] = task;
+		return true;
+	}
+	
+	/**
+	*	Prints the struct.
+	*	Params:
+	*		tabs =	The amount of tabs to print.
+	*/
+	void print(string tabs) {
+		import std.stdio : writeln, writefln;
+		writefln("%sStruct:", tabs);
+		writefln("%s\tName: %s", tabs, m_name);
+			
+		if (m_initVariables) {
+			writefln("%s\tVariables:", tabs);
+			foreach (var; m_initVariables) {
+				var.print(tabs ~ "\t\t");
+				writeln();
+			}
+		}
+		else
+			writefln("%s\tVariables: N/A", tabs);
+		
+		if (m_initTasks) {
+			writefln("%s\tTasks:", tabs);
+			foreach (task; m_initTasks.values) {
+				task.print(tabs ~ "\t\t");
+				writeln();
+			}
+		}
+		else
+			writeln("\tTasks: N/A");
+			
+		if (m_attributes) {
+			writefln("%s\tAttributes:", tabs);
+			foreach (attr; m_attributes) {
+				writefln("%s\t\t%s", tabs, attr);
+			}
+		}
+		else
+			writefln("%s\tAttributes: N/A", tabs);
+	}
+}
+
+/**
+*	Class Type
+*/
+class Class {
+private:
+	/**
+	*	The name.
+	*/
+	string m_name;
+	/**
+	*	The parent.
+	*/
+	Class m_parent;
+	/**
+	*	The attributes.
+	*/
+	string[] m_attributes;
+	/**
+	*	The variables.
+	*/
+	Variable[string] m_variables;
+	/**
+	*	The initialization variables.
+	*/
+	Variable[string] m_initVariables;
+	/**
+	*	The tasks.
+	*/
+	Task[string] m_tasks;
+	/**
+	*	The initialization tasks.
+	*/
+	Task[string] m_initTasks;
+public:
+	/**
+	*	Creates a new instance of Class.
+	*	Params:
+	*		name =					The name of the class.
+	*		attributes =			The attributes.
+	*		inheritedVariables =	The inheritedVariables from parents.
+	*		parent =				The parent class.
+	*/
+	this(string name, string[] attributes, Variable[string] inheritedVariables, Class parent) {
+		m_name = name;
+		m_attributes = attributes;
+		foreach (k, v; inheritedVariables)
+			m_variables[k] = v;
+		if (parent) {
+			foreach (k, v; parent.initVariables)
+				m_variables[k] = v;
+			m_parent = parent;
+		}
+	}
+	
+	@property {
+		/**
+		*	Gets the name.
+		*/
+		string name() { return m_name; }
+
+		/**
+		*	Gets the parent.
+		*/
+		Class parent() { return m_parent; }
+		
+		/**
+		*	Gets the variables.
+		*/
+		Variable[string] variables() { return m_variables; }
+		/**
+		*	Gets the initialization variables.
+		*/
+		Variable[string] initVariables() { return m_initVariables; }
+		
+		/**
+		*	Gets the tasks.
+		*/
+		Task[string] tasks() { return m_tasks; }
+		
+		/**
+		*	Gets the initialization tasks.
+		*/
+		Task[string] initTasks() { return m_initTasks; }
+		
+		/**
+		*	Gets the attributes.
+		*/
+		string[] attributes() { return m_attributes; }
+	}
+	
+	/**
+	*	Adds a variable to the class.
+	*	Params:
+	*		var =	The variable to add.
+	*	Returns: True if the variable was added, false if duplicate.
+	*/
+	bool addVar(Variable var) {
+		if (var.name in m_initVariables)
+			return false;
+		m_initVariables[var.name] = var;
+		m_variables[var.name] = var;
+		return true;
+	}
+	
+	/**
+	*	Adds a task to the class.
+	*	Params:
+	*		var =	The task to add.
+	*	Returns: True if the task was added, false if duplicate.
+	*/
+	bool addTask(Task task) {
+		if (task.name in m_initTasks)
+			return false;
+		m_tasks[task.name] = task;
+		m_initTasks[task.name] = task;
+		return true;
+	}
+	
+	/**
+	*	Prints the class.
+	*	Params:
+	*		tabs =	The amount of tabs to print.
+	*/
+	void print(string tabs) {
+		import std.stdio : writeln, writefln;
+		writefln("%sClass:", tabs);
+		writefln("%s\tName: %s", tabs, m_name);
+		if (m_parent)
+			writefln("%s\tParent: %s", tabs, m_parent.name);
+		else
+			writefln("%s\tParent: N/A", tabs);
+			
+		if (m_initVariables) {
+			writefln("%s\tVariables:", tabs);
+			foreach (var; m_initVariables) {
+				var.print(tabs ~ "\t\t");
+				writeln();
+			}
+		}
+		else
+			writefln("%s\tVariables: N/A", tabs);
+		
+		if (m_initTasks) {
+			writefln("%s\tTasks:", tabs);
+			foreach (task; m_initTasks.values) {
+				task.print(tabs ~ "\t\t");
+				writeln();
+			}
+		}
+		else
+			writeln("\tTasks: N/A");
 			
 		if (m_attributes) {
 			writefln("%s\tAttributes:", tabs);

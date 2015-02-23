@@ -17,6 +17,7 @@ import modules.naming;
 import modules.sources;
 import parser.parsingtypes;
 import parser.tokenizer;
+import parser.namevalidator;
 
 /**
 *	The parsed module names.
@@ -223,6 +224,7 @@ public:
 				}
 				
 				case "task": {
+					size_t cline = m_line;
 					import parser.taskparser;
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
@@ -230,15 +232,41 @@ public:
 						m_module.globalVariables
 					);
 					if (taskParser.task) {
-						m_module.addGlobalTask(taskParser.task);
+						if (!m_module.addGlobalTask(taskParser.task))
+							reportError(m_fileName, cline, "Duplicate", "Task name conflicting with an earlier local task.");
 					}
 					break;
 				}
 				
 				case "struct": {
+					size_t cline = m_line;
+					import parser.structparser;
+					scope auto structParser = new StructParser();
+					structParser.parse(
+						m_fileName, m_line, m_source, attributes, aliases,
+						m_module.globalVariables
+					);
+					if (structParser.strc) {
+						if (!m_module.addStruct(structParser.strc)) {
+							reportError(m_fileName, cline, "Duplicate", "Struct name conflicting with an earlier local struct.");
+						}
+					}
 					break;
 				}
 				case "class": {
+					size_t cline = m_line;
+					import parser.classparser;
+					scope auto classParser = new ClassParser();
+					classParser.parse(
+						m_fileName, m_line, m_source, attributes, aliases,
+						m_module.globalVariables,
+						m_module.classes
+					);
+					if (classParser.cls) {
+						if (!m_module.addClass(classParser.cls)) {
+							reportError(m_fileName, cline, "Duplicate", "Class name conflicting with an earlier local class.");
+						}
+					}
 					break;
 				}
 				case "enum": {
@@ -246,10 +274,12 @@ public:
 				}
 				
 				default: {
+					size_t cline = m_line;
 					import parser.variableparser;
-					scope auto variableParser = new VariableParser();
+					scope auto variableParser = new VariableParser!Variable;
 					if (variableParser.parse(m_fileName, m_line, line, attributes) && variableParser.var) {
-						m_module.addGlobalVar(variableParser.var);
+						if (!m_module.addGlobalVar(variableParser.var))
+							reportError(m_fileName, m_line, "Duplicate", "Variable name conflicting with an earlier local variable.");
 					}
 					else {
 						// reportError(m_fileName, m_line, "Invalid Syntax", "Invalid syntax or non-parsable code.");
