@@ -54,7 +54,8 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables, Module mod, Class[string] classes) {
+		Variable[string] inheritedVariables, Module mod, Class[string] classes,
+		ModifierAccess1 _modifier1, ModifierAccess2 _modifier2) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -63,8 +64,8 @@ public:
 		// Sets the inherited aliases.
 		foreach (k, v; ialiases)
 			aliases[k] = v;
-		ModifierAccess1 modifier1 = ModifierAccess1._public;
-		ModifierAccess2 modifier2 = ModifierAccess2.none;
+		ModifierAccess1 modifier1 = _modifier1;
+		ModifierAccess2 modifier2 =_modifier2;
 		
 		// Loops through the source by its lines
 		while (lineNumber < source.length) {
@@ -210,10 +211,15 @@ public:
 						return;
 					}
 					auto parent = tokenized[1];
-					if (!parent)
-						m_class = new Class(name, attributes, inheritedVariables, null);
+					if (!parent) {
+						m_class = new Class(name, attributes, inheritedVariables, null, modifier1, modifier2);
+						modifier1 = ModifierAccess1._public;
+						modifier2 = ModifierAccess2.none;
+					}
 					else if (parent in classes) {
-						m_class = new Class(name, attributes, inheritedVariables, classes[parent]);
+						m_class = new Class(name, attributes, inheritedVariables, classes[parent], modifier1, modifier2);
+						modifier1 = ModifierAccess1._public;
+						modifier2 = ModifierAccess2.none;
 					}
 					else {
 						reportError(fileName, lineNumber, "Invalid Inheritance", format("'%s' cannot inherit '%s', because it wasn't found!", name, parent));
@@ -227,7 +233,9 @@ public:
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
 						fileName, lineNumber, source, attributes, aliases,
-						inheritedVariables, mod, isConstructor,
+						inheritedVariables, mod,
+						modifier1, modifier2,
+						isConstructor,
 						m_class
 					);
 					if (taskParser.task) {

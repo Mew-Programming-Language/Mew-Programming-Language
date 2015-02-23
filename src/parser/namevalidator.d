@@ -108,21 +108,30 @@ void handleLOExpression(Task task, string fileName, ref size_t lineNumber, strin
 				if (parent) {
 					if (parent.udt in mod.structs) {
 						auto parentType = mod.structs[parent.udt];
-						if (names[1] in parentType.childVariables)
-							task.addExp(new LOExpression(expression));
+						if (names[1] in parentType.childVariables) {
+							auto var = parentType.childVariables[names[1]];
+							if (var.modifier1 == ModifierAccess1._public)
+								task.addExp(new LOExpression(expression));
+							else
+								reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+						}
 						else
 							reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
 					}
 					else if (parent.udt in mod.classes) {
 						auto parentType = mod.classes[parent.udt];
-						if (names[1] in parentType.initVariables)
-							task.addExp(new LOExpression(expression));
+						if (names[1] in parentType.initVariables) {
+							auto var = parentType.initVariables[names[1]];
+							if (var.modifier1 == ModifierAccess1._public)
+								task.addExp(new LOExpression(expression));
+							else
+								reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+						}
 						else
 							reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
 						}
 					else {
-						reportError(fileName, lineNumber, "Call Error", format("%s", parent.name));
-						//reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
+						reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
 					}
 				}
 				else {
@@ -166,21 +175,30 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 					if (parent) {
 						if (parent.udt in mod.structs) {
 							auto parentType = mod.structs[parent.udt];
-							if (names[1] in parentType.childVariables)
-								leftMatch = true;
+							if (names[1] in parentType.childVariables) {
+								auto var = parentType.childVariables[names[1]];
+								if (var.modifier1 == ModifierAccess1._public)
+									leftMatch = true;
+								else
+									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+							}
 							else
 								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
 						}
 						else if (parent.udt in mod.classes) {
 							auto parentType = mod.classes[parent.udt];
-							if (names[1] in parentType.initVariables)
-								leftMatch = true;
+							if (names[1] in parentType.initVariables) {
+								auto var = parentType.initVariables[names[1]];
+								if (var.modifier1 == ModifierAccess1._public)
+									leftMatch = true;
+								else
+									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+							}
 							else
 								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
 							}
 						else {
-							reportError(fileName, lineNumber, "Call Error", format("%s", parent.name));
-							//reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
+							reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
 						}
 					}
 					else { 
@@ -216,21 +234,30 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 					if (parent) {
 						if (parent.udt in mod.structs) {
 							auto parentType = mod.structs[parent.udt];
-							if (names[1] in parentType.childVariables)
-								task.addExp(new LORExpression(expression));
+							if (names[1] in parentType.childVariables) {
+								auto var = parentType.childVariables[names[1]];
+								if (var.modifier1 == ModifierAccess1._public)
+									task.addExp(new LORExpression(expression));
+								else
+									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+							}
 							else
 								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
 						}
 						else if (parent.udt in mod.classes) {
 							auto parentType = mod.classes[parent.udt];
-							if (names[1] in parentType.initVariables)
-								task.addExp(new LORExpression(expression));
+							if (names[1] in parentType.initVariables) {
+								auto var = parentType.initVariables[names[1]];
+								if (var.modifier1 == ModifierAccess1._public)
+									task.addExp(new LORExpression(expression));
+								else
+									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+							}
 							else
 								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
 							}
 						else {
-							reportError(fileName, lineNumber, "Call Error", format("%s", parent.name));
-							//reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
+							reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
 						}
 					}
 					else {

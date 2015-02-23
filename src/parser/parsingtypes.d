@@ -149,10 +149,22 @@ public:
 	*/
 	void addImport(Module mod) {
 		m_imports ~= mod;
-		foreach (var; mod.m_globalVariables.values)
-			m_globalVariables[var.name] = var;
-		foreach (task; mod.globalTasks.values)
-			m_globalTasks[task.name] = task;
+		foreach (var; mod.initVariables.values) {
+			if (var.modifier1 == ModifierAccess1._public)
+				m_globalVariables[var.name] = var;
+		}
+		foreach (task; mod.initTasks.values) {
+			if (task.modifier1 == ModifierAccess1._public)
+				m_globalTasks[task.name] = task;
+		}
+		foreach (strc; mod.initStructs.values) {
+			if (strc.modifier1 == ModifierAccess1._public)
+				m_structs[strc.name] = strc;
+		}
+		foreach (cls; mod.initClasses.values) {
+			if (cls.modifier1 == ModifierAccess1._public)
+				m_classes[cls.name] = cls;
+		}
 	}
 	
 	/**
@@ -469,6 +481,14 @@ private:
 	*	The expressions
 	*/
 	TaskExpression[] m_expressions;
+	/**
+	*	The first modifier access.
+	*/
+	ModifierAccess1 m_modifier1;
+	/**
+	*	The secondary modifier access.
+	*/
+	ModifierAccess2 m_modifier2;
 public:
 	/**
 	*	Creates a new instance of Task.
@@ -479,7 +499,7 @@ public:
 	*		attributes =			The attributes.
 	*		inheritedVariables =	The inheritedVariables from parents.
 	*/
-	this(string name, AType returnType, Variable[] parameters, string[] attributes, Variable[string] inheritedVariables, ParentType parent = null) {
+	this(string name, AType returnType, Variable[] parameters, string[] attributes, Variable[string] inheritedVariables, ModifierAccess1 modifier1, ModifierAccess2 modifier2, ParentType parent = null) {
 		m_name = name;
 		m_returnType = returnType;
 		m_parameters = parameters;
@@ -489,6 +509,8 @@ public:
 		foreach (param; parameters)
 			addVar(param);
 		m_parent = parent;
+		m_modifier1 = modifier1;
+		m_modifier2 = modifier2;
 	}
 	
 	@property {
@@ -526,6 +548,21 @@ public:
 		*	Gets the expressions.
 		*/
 		TaskExpression[] expressions() { return m_expressions; }
+		
+		/**
+		*	Gets the parent type.
+		*/
+		ParentType parent() { return m_parent; }
+		
+		/**
+		*	Gets the first modifier access.
+		*/
+		ModifierAccess1 modifier1() { return m_modifier1; }
+		
+		/**
+		*	Gets the second modifier access.
+		*/
+		ModifierAccess2 modifier2() { return m_modifier2; }
 	}
 	
 	/**
@@ -561,6 +598,8 @@ public:
 		if (m_parent)
 			writefln("%s\tParent: %s", tabs, m_parent.name);
 		writefln("%s\tReturn Type: %s", tabs, m_returnType);
+		writefln("%s\tModifier 1: %s", tabs, m_modifier1);
+		writefln("%s\tModifier 2: %s", tabs, m_modifier2);
 		
 		if (m_parameters) {
 			writefln("%s\tParameters:", tabs);
@@ -602,18 +641,39 @@ public:
 	}
 }
 
+/**
+*	Parent type.
+*/
 class ParentType {
 private:
+	/**
+	*	Boolean determining whether the parent is a struct.
+	*/
 	bool m_isStruct;
 protected:
+	/**
+	*	The name of the parent.
+	*/
 	string m_name;
 public:
+	/**
+	*	Creates a new instance of ParentType.
+	*	Params:
+	*		isStruct =	Set to true for struct, false for class.
+	*/
 	this(bool isStruct) {
 		m_isStruct = isStruct;
 	}
 	
 	@property {
+		/**
+		*	Gets a boolean determining whether the parent is a struct or not.
+		*/
 		bool isStruct() { return m_isStruct; }
+		
+		/**
+		*	Gets the name.
+		*/
 		string name() { return m_name; }
 	}
 }
@@ -629,7 +689,7 @@ private:
 	*/
 	size_t m_alignment;
 public:
-		/**
+	/**
 	*	Creates a new instance of StructVariable.
 	*	Params:
 	*		type =				The type.
@@ -700,6 +760,14 @@ private:
 	*	The initialization tasks.
 	*/
 	Task[string] m_initTasks;
+	/**
+	*	The first modifier access.
+	*/
+	ModifierAccess1 m_modifier1;
+	/**
+	*	The secondary modifier access.
+	*/
+	ModifierAccess2 m_modifier2;
 public:
 	/**
 	*	Creates a new instance of Struct.
@@ -708,12 +776,19 @@ public:
 	*		attributes =			The attributes.
 	*		inheritedVariables =	The inheritedVariables from parents.
 	*/
-	this(string name, string[] attributes, Variable[string] inheritedVariables) {
+	this(string name, string[] attributes, Variable[string] inheritedVariables, ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
 		m_name = name;
 		m_attributes = attributes;
-		foreach (k, v; inheritedVariables)
-			m_variables[k] = v;
-			
+		foreach (k, v; inheritedVariables) {
+			if (v.modifier1 == ModifierAccess1._public ||
+				v.modifier1 == ModifierAccess1._protected ||
+				v.modifier1 == ModifierAccess1._personal) {
+				m_variables[k] = v;
+			}
+		}
+		
+		m_modifier1 = modifier1;
+		m_modifier2 = modifier2;
 		super(true);
 	}
 	
@@ -746,6 +821,16 @@ public:
 		*	Gets the attributes.
 		*/
 		string[] attributes() { return m_attributes; }
+		
+		/**
+		*	Gets the first modifier access.
+		*/
+		ModifierAccess1 modifier1() { return m_modifier1; }
+		
+		/**
+		*	Gets the second modifier access.
+		*/
+		ModifierAccess2 modifier2() { return m_modifier2; }
 	}
 	
 	/**
@@ -786,6 +871,8 @@ public:
 		import std.stdio : writeln, writefln;
 		writefln("%sStruct:", tabs);
 		writefln("%s\tName: %s", tabs, m_name);
+		writefln("%s\tModifier 1: %s", tabs, m_modifier1);
+		writefln("%s\tModifier 2: %s", tabs, m_modifier2);
 			
 		if (m_initVariables) {
 			writefln("%s\tVariables:", tabs);
@@ -847,6 +934,14 @@ private:
 	*	The initialization tasks.
 	*/
 	Task[string] m_initTasks;
+	/**
+	*	The first modifier access.
+	*/
+	ModifierAccess1 m_modifier1;
+	/**
+	*	The secondary modifier access.
+	*/
+	ModifierAccess2 m_modifier2;
 public:
 	/**
 	*	Creates a new instance of Class.
@@ -856,17 +951,29 @@ public:
 	*		inheritedVariables =	The inheritedVariables from parents.
 	*		parent =				The parent class.
 	*/
-	this(string name, string[] attributes, Variable[string] inheritedVariables, Class parent) {
+	this(string name, string[] attributes, Variable[string] inheritedVariables, Class parent, ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
 		m_name = name;
 		m_attributes = attributes;
-		foreach (k, v; inheritedVariables)
-			m_variables[k] = v;
-		if (parent) {
-			foreach (k, v; parent.initVariables)
+		foreach (k, v; inheritedVariables) {
+			if (v.modifier1 == ModifierAccess1._public ||
+				v.modifier1 == ModifierAccess1._protected ||
+				v.modifier1 == ModifierAccess1._personal) {
 				m_variables[k] = v;
+			}
+		}
+		if (parent) {
+			foreach (k, v; parent.initVariables) {
+				if (v.modifier1 == ModifierAccess1._public ||
+					v.modifier1 == ModifierAccess1._protected ||
+					v.modifier1 == ModifierAccess1._personal) {
+					m_variables[k] = v;
+				}
+			}
 			m_parent = parent;
 		}
 		
+		m_modifier1 = modifier1;
+		m_modifier2 = modifier2;
 		super(false);
 	}
 	
@@ -899,6 +1006,16 @@ public:
 		*	Gets the attributes.
 		*/
 		string[] attributes() { return m_attributes; }
+		
+		/**
+		*	Gets the first modifier access.
+		*/
+		ModifierAccess1 modifier1() { return m_modifier1; }
+		
+		/**
+		*	Gets the second modifier access.
+		*/
+		ModifierAccess2 modifier2() { return m_modifier2; }
 	}
 	
 	/**
@@ -942,6 +1059,8 @@ public:
 			writefln("%s\tParent: %s", tabs, m_parent.name);
 		else
 			writefln("%s\tParent: N/A", tabs);
+		writefln("%s\tModifier 1: %s", tabs, m_modifier1);
+		writefln("%s\tModifier 2: %s", tabs, m_modifier2);
 			
 		if (m_initVariables) {
 			writefln("%s\tVariables:", tabs);

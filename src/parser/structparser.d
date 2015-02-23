@@ -54,7 +54,8 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables, Module mod) {
+		Variable[string] inheritedVariables, Module mod,
+		ModifierAccess1 _modifier1, ModifierAccess2 _modifier2) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -63,8 +64,8 @@ public:
 		// Sets the inherited aliases.
 		foreach (k, v; ialiases)
 			aliases[k] = v;
-		ModifierAccess1 modifier1 = ModifierAccess1._public;
-		ModifierAccess2 modifier2 = ModifierAccess2.none;
+		ModifierAccess1 modifier1 = _modifier1;
+		ModifierAccess2 modifier2 =_modifier2;
 		
 		// Loops through the source by its lines
 		while (lineNumber < source.length) {
@@ -203,7 +204,9 @@ public:
 						reportError(fileName, lineNumber, "Invalid Name", "Invalid struct name. Make sure it's A-Z and doesn't conflic with keywords.");
 						return;
 					}
-					m_struct = new Struct(name, attributes, inheritedVariables);
+					m_struct = new Struct(name, attributes, inheritedVariables, modifier1, modifier2);
+					modifier1 = ModifierAccess1._public;
+					modifier2 = ModifierAccess2.none;
 					break;
 				}
 				
@@ -215,6 +218,7 @@ public:
 						fileName, lineNumber, source, attributes, aliases,
 						inheritedVariables, 
 						mod,
+						modifier1, modifier2,
 						isConstructor,
 						m_struct
 					);

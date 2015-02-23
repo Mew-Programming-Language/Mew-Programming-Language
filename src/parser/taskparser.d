@@ -54,7 +54,7 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables, Module mod, bool isConstructor = false, ParentType parent = null) {
+		Variable[string] inheritedVariables, Module mod, ModifierAccess1 modifier1, ModifierAccess2 modifier2, bool isConstructor = false, ParentType parent = null) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -154,7 +154,7 @@ public:
 						}
 					}
 					
-					m_task = new Task(name, returnType, params, attributes, inheritedVariables, parent);
+					m_task = new Task(name, returnType, params, attributes, inheritedVariables, modifier1, modifier2, parent);
 					break;
 				}
 				
