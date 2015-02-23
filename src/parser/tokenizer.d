@@ -26,7 +26,9 @@ enum AType : ushort {
 	uint8, uint16, uint32, uint64,
 	_float, _double, _real,
 	_bool, _char, _string,
-	_size_t, _ptrdiff_t
+	_size_t, _ptrdiff_t,
+	_struct, _class,
+	_enum
 }
 
 /**
@@ -58,11 +60,11 @@ private enum AbstractDataTypes = [
 	"queue"
 ];
 
-//type1,type2,declaration,name,defaultValue
+//type1,type2,declaration,name,defaultValue,udt
 /**
 *	Type tuple.
 */
-alias ATypeTuple = Tuple!(AType,AType,ATypeDeclaration,string,string);
+alias ATypeTuple = Tuple!(AType,AType,ATypeDeclaration,string,string,string);
 
 /**
 *	Checks whether an input is numeric or not.
@@ -123,13 +125,14 @@ private bool setType(string type, ref AType dataType) {
 *		input =			The input to tokenize.
 *	Returns: Type tuple for the variable.
 */
-auto tokenizeVariable(string fileName, size_t lineNumber, string input) {
+auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[] structs, string[] classes, string[] enums) {
 	ATypeTuple errorReturn;
 	errorReturn[0] = AType.error;
 	errorReturn[1] = AType.error;
 	errorReturn[2] = ATypeDeclaration.single;
 	errorReturn[3] = null;
 	errorReturn[4] = null;
+	errorReturn[5] = null;
 	
 	if (!input) {
 		reportError(fileName, lineNumber, "Invalid Variable Syntax", "No input source.");
@@ -211,6 +214,7 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input) {
 	
 	AType dataType;
 	AType dataType2 = AType.error;
+	string udt;
 	if (canFind(type, ":")) {
 		auto types = split(type, ":");
 		if (types.length != 2) {
@@ -218,14 +222,45 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input) {
 			return errorReturn;
 		}
 		
-		if (!setType(types[0], dataType)) {
+		if (canFind(structs, types[0])) {
+			dataType = AType._struct;
+		}
+		else if (canFind(classes, types[0])) {
+			dataType = AType._class;
+		}
+		else if (canFind(enums, types[0])) {
+			dataType = AType._enum;
+		}
+		else if (!setType(types[0], dataType)) {
 			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set first variable type.");
 			return errorReturn;
 		}
-		if (!setType(types[1], dataType2)) {
+		
+		if (canFind(structs, types[0])) {
+			dataType2 = AType._struct;
+		}
+		else if (canFind(classes, types[0])) {
+			dataType2 = AType._class;
+		}
+		else if (canFind(enums, types[0])) {
+			dataType2 = AType._enum;
+		}
+		else if (!setType(types[1], dataType2)) {
 			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set secondary variable type.");
 			return errorReturn;
 		}
+	}
+	else if (canFind(structs, type)) {
+		dataType = AType._struct;
+		udt = type;
+	}
+	else if (canFind(classes, type)) {
+		dataType = AType._class;
+		udt = type;
+	}
+	else if (canFind(enums, type)) {
+		dataType = AType._enum;
+		udt = type;
 	}
 	else if (!setType(type, dataType)) {
 		reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set variable type.");
@@ -239,7 +274,18 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input) {
 		tupleReturn[2] = declaration;
 		tupleReturn[3] = data[1];
 		tupleReturn[4] = null;
+		tupleReturn[5] = udt;
 		return tupleReturn;
+	}
+	else if (dataType == AType._struct ||
+		dataType == AType._class ||
+		dataType == AType._enum ||
+		dataType2 == AType._struct ||
+		dataType2 == AType._class ||
+		dataType2 == AType._enum) {
+			// udt's cannot have values atm. ...
+			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Cannot assign value to this type.");
+			return errorReturn;
 	}
 	else {
 		int valueIndex = countUntil(input, "=");
@@ -284,6 +330,7 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input) {
 		tupleReturn[2] = declaration;
 		tupleReturn[3] = data[1];
 		tupleReturn[4] = valueSelect;
+		tupleReturn[5] = null;
 		return tupleReturn;
 	}
 }
@@ -302,7 +349,7 @@ alias ATaskTuple = Tuple!(string,AType,ATypeTuple[]);
 *		input =			The input to tokenize.
 *	Returns: Task tuple for the task.
 */
-auto tokenizeTask(string fileName, size_t lineNumber, string input) {
+auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] structs, string[] classes, string[] enums) {
 	AType returnType = AType.error;
 	
 	ATaskTuple errorReturn;
@@ -332,7 +379,7 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input) {
 	}
 	
 	if (taskInfo.length == 3) {
-		returnType = tokenizeVariable(fileName, lineNumber, taskInfo[1] ~ " " ~ taskInfo[2])[0];
+		returnType = tokenizeVariable(fileName, lineNumber, taskInfo[1] ~ " " ~ taskInfo[2], structs, classes, enums)[0];
 	}
 	else if (taskInfo.length != 2) {
 		reportError(fileName, lineNumber, "Invalid Task Syntax", "Cannot parse task info.");
@@ -348,7 +395,7 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input) {
 		}
 		auto params = split(taskData[1][0 .. $-1], ",");
 		foreach (param; params) {
-			auto paramTuple = tokenizeVariable(fileName, lineNumber, param);
+			auto paramTuple = tokenizeVariable(fileName, lineNumber, param, structs, classes, enums);
 			if (paramTuple[0] == AType.error)
 				return errorReturn; // tokenizeVariable() already reports the error
 			paramTuples ~= paramTuple;
@@ -481,4 +528,96 @@ auto tokenizeClass(string fileName, size_t lineNumber, string input) {
 	returnClass[0] = classInfo[1];
 	returnClass[1] = baseName;
 	return returnClass;
+}
+
+//	Note:
+//		Expressions do not report errors due to the fact there might be multiple expression validations. Some may fail, while otherwise will succeed.
+
+// leftHand, operator, rightHand
+/**
+*	Expression Tuple.
+*/
+alias AExpressionTuple = Tuple!(string,string,string);
+
+/**
+*	Enumeration of LOR operators.
+*/
+private enum AOperators1 = [
+	// set
+	"=",
+	// art
+	"+=", "-=", "*=", "/=",
+	// bit
+	"^="
+];
+
+/**
+*	Tokenizes an expression. (leftHand, operator, rightHand)
+*	Params:
+*		fileName =		The file name.
+*		lineNumber =	The current line.
+*		input =			The input to tokenize.
+*	Returns: Expression tuple for the expression.
+*/
+auto tokenizeExpression1(string fileName, size_t lineNumber, string input) {
+	AExpressionTuple errorReturn;
+	errorReturn[0] = null;
+	errorReturn[1] = null;
+	errorReturn[2] = null;
+	
+	auto expData = split(input, " ");
+	if (expData.length != 3) {
+		return errorReturn;
+	}
+	
+	if (!canFind(AOperators1, expData[1])) {
+		return errorReturn;
+	}
+	
+	AExpressionTuple expression;
+	expression[0] = expData[0];
+	expression[1] = expData[1];
+	expression[2] = expData[2];
+	return expression;
+}
+
+/**
+*	Enumeration of LO operators.
+*/
+private enum AOperators2 = [
+	"++", "--"
+];
+
+/**
+*	Tokenizes an expression. (leftHandOP)
+*	Params:
+*		fileName =		The file name.
+*		lineNumber =	The current line.
+*		input =			The input to tokenize.
+*	Returns: Expression tuple for the expression.
+*/
+auto tokenizeExpression2(string fileName, size_t lineNumber, string input) {
+	AExpressionTuple errorReturn;
+	errorReturn[0] = null;
+	errorReturn[1] = null;
+	errorReturn[2] = null;
+	
+	if (input.length < 3) {
+		return errorReturn;
+	}
+	
+	if (canFind(input, " ")) {
+		return errorReturn;
+	}
+	
+	string name = input[0 .. $-2];
+	string op = input[$-2 .. $];
+	if (!canFind(AOperators2, op)) {
+		return errorReturn;
+	}
+	
+	AExpressionTuple expression;
+	expression[0] = name;
+	expression[1] = op;
+	return expression;
 }

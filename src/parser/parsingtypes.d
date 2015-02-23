@@ -9,8 +9,31 @@
 */
 module parser.parsingtypes;
 
+// Std Imports
+import std.string : format;
+
 // Mew Imports
 import parser.tokenizer : AType, ATypeDeclaration;
+
+/**
+*	Enumeration for first modifier access.
+*/
+enum ModifierAccess1 {
+	_public, // write = all, read = all
+	_protected, // write = self + child, read = self + child
+	_private, // write = self, read = self
+	_personal // write = self, read = all
+}
+
+/**
+*	Enumeration for secondary modifier access.
+*/
+enum ModifierAccess2 {
+	none, // dependending on ModifierAccess1 only
+	_const, // write = none (set once)
+	_immutable, // write = constructor only
+	_scope, // call free() if malloc() was called on it, else call destructor if existing, else attempt to free all its data
+}
 
 /**
 *	Module Type
@@ -261,6 +284,10 @@ private:
 	*/
 	AType m_type2;
 	/**
+	*	UDT
+	*/
+	string m_udt;
+	/**
 	*	The declaration.
 	*/
 	ATypeDeclaration m_declaration;
@@ -276,6 +303,14 @@ private:
 	*	The attributes.
 	*/
 	string[] m_attributes;
+	/**
+	*	The first modifier access.
+	*/
+	ModifierAccess1 m_modifier1;
+	/**
+	*	The secondary modifier access.
+	*/
+	ModifierAccess2 m_modifier2;
 public:
 	/**
 	*	Creates a new instance of Variable.
@@ -285,12 +320,14 @@ public:
 	*		defaultValue =		The default value. (null for nothing.)
 	*		attributes =		The attributes.
 	*/
-	this(AType type, string name, string defaultValue, string[] attributes) {
+	this(AType type, string name, string defaultValue, string[] attributes, ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
 		m_type1 = type;
 		m_declaration = ATypeDeclaration.single;
 		m_name = name;
 		m_defaultValue = defaultValue;
 		m_attributes = attributes;
+		m_modifier1 = modifier1;
+		m_modifier2 = modifier2;
 	}
 	
 	/**
@@ -302,13 +339,15 @@ public:
 	*		name =			The name.
 	*		attributes =	The attributes.
 	*/
-	this(ATypeDeclaration declaration, AType type1, AType type2, string name, string[] attributes) {
+	this(ATypeDeclaration declaration, AType type1, AType type2, string name, string[] attributes, ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
 		m_type1 = type1;
 		m_type2 = type2;
 		m_declaration = declaration;
 		m_name = name;
 		m_defaultValue = defaultValue;
 		m_attributes = attributes;
+		m_modifier1 = modifier1;
+		m_modifier2 = modifier2;
 	}
 	
 	@property {
@@ -320,6 +359,7 @@ public:
 		*	Gets the second type.
 		*/
 		AType type2() { return m_type2; }
+		string udt() { return m_udt; }
 		/**
 		*	Gets the declaration.
 		*/
@@ -336,6 +376,20 @@ public:
 		*	Gets the attributes.
 		*/
 		string[] attributes() { return m_attributes; }
+		
+		/**
+		*	Gets the first modifier access.
+		*/
+		ModifierAccess1 modifier1() { return m_modifier1; }
+		
+		/**
+		*	Gets the second modifier access.
+		*/
+		ModifierAccess2 modifier2() { return m_modifier2; }
+	}
+	
+	void setUDT(string udt) {
+		m_udt = udt;
 	}
 	
 	/**
@@ -348,7 +402,10 @@ public:
 		if (m_declaration == ATypeDeclaration.single) {
 			writefln("%sVariable:", tabs);
 			writefln("%s\tType: %s", tabs, m_type1);
+			writefln("%s\tUDT: %s", tabs, m_udt);
 			writefln("%s\tName: %s", tabs, m_name);
+			writefln("%s\tModifier 1: %s", tabs, m_modifier1);
+			writefln("%s\tModifier 2: %s", tabs, m_modifier2);
 			if (m_defaultValue)
 				writefln("%s\tDefault Value: %s", tabs, m_defaultValue);
 			else
@@ -360,6 +417,8 @@ public:
 			writefln("%s\tType 1: %s", tabs, m_type1);
 			writefln("%s\tType 2: %s", tabs, m_type2);
 			writefln("%s\tName: %s", tabs, m_name);
+			writefln("%s\tModifier 1: %s", tabs, m_modifier1);
+			writefln("%s\tModifier 2: %s", tabs, m_modifier2);
 		}
 		if (m_attributes) {
 			writefln("%s\tAttributes:", tabs);
@@ -402,6 +461,14 @@ private:
 	*	The attributes.
 	*/
 	string[] m_attributes;
+	/**
+	*	The parent.
+	*/
+	ParentType m_parent;
+	/**
+	*	The expressions
+	*/
+	TaskExpression[] m_expressions;
 public:
 	/**
 	*	Creates a new instance of Task.
@@ -412,7 +479,7 @@ public:
 	*		attributes =			The attributes.
 	*		inheritedVariables =	The inheritedVariables from parents.
 	*/
-	this(string name, AType returnType, Variable[] parameters, string[] attributes, Variable[string] inheritedVariables) {
+	this(string name, AType returnType, Variable[] parameters, string[] attributes, Variable[string] inheritedVariables, ParentType parent = null) {
 		m_name = name;
 		m_returnType = returnType;
 		m_parameters = parameters;
@@ -421,6 +488,7 @@ public:
 			addVar(v, false);
 		foreach (param; parameters)
 			addVar(param);
+		m_parent = parent;
 	}
 	
 	@property {
@@ -453,6 +521,11 @@ public:
 		*	Gets the attributes.
 		*/
 		string[] attributes() { return m_attributes; }
+		
+		/**
+		*	Gets the expressions.
+		*/
+		TaskExpression[] expressions() { return m_expressions; }
 	}
 	
 	/**
@@ -472,6 +545,10 @@ public:
 		return true;
 	}
 	
+	void addExp(TaskExpression exp) {
+		m_expressions ~= exp;
+	}
+	
 	/**
 	*	Prints the task.
 	*	Params:
@@ -481,12 +558,14 @@ public:
 		import std.stdio : writeln, writefln;
 		writefln("%sTask:", tabs);
 		writefln("%s\tName: %s", tabs, m_name);
+		if (m_parent)
+			writefln("%s\tParent: %s", tabs, m_parent.name);
 		writefln("%s\tReturn Type: %s", tabs, m_returnType);
 		
 		if (m_parameters) {
 			writefln("%s\tParameters:", tabs);
 			foreach (var; m_parameters) {
-				var.print(tabs ~ "\t\t");
+				writefln("%s\t\t%s", tabs, var.name);
 				writeln();
 			}
 		}
@@ -511,6 +590,31 @@ public:
 		}
 		else
 			writefln("%s\tAttributes: N/A", tabs);
+			
+		if (m_expressions) {
+			writefln("%s\tExpressions:", tabs);
+			foreach (exp; m_expressions) {
+				writefln("%s\t\t%s", tabs, exp.toString());
+			}
+		}
+		else
+			writefln("%s\tExpressions: N/A", tabs);
+	}
+}
+
+class ParentType {
+private:
+	bool m_isStruct;
+protected:
+	string m_name;
+public:
+	this(bool isStruct) {
+		m_isStruct = isStruct;
+	}
+	
+	@property {
+		bool isStruct() { return m_isStruct; }
+		string name() { return m_name; }
 	}
 }
 
@@ -533,8 +637,8 @@ public:
 	*		defaultValue =		The default value. (null for nothing.)
 	*		attributes =		The attributes.
 	*/
-	this(AType type, string name, string defaultValue, string[] attributes) {
-		super(type, name, defaultValue, attributes);
+	this(AType type, string name, string defaultValue, string[] attributes, ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
+		super(type, name, defaultValue, attributes, modifier1, modifier2);
 	}
 	
 	/**
@@ -546,8 +650,8 @@ public:
 	*		name =			The name.
 	*		attributes =	The attributes.
 	*/
-	this(ATypeDeclaration declaration, AType type1, AType type2, string name, string[] attributes) {
-		super(declaration, type1, type2, name, attributes);
+	this(ATypeDeclaration declaration, AType type1, AType type2, string name, string[] attributes, ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
+		super(declaration, type1, type2, name, attributes, modifier1, modifier2);
 	}
 	
 	@property {
@@ -570,12 +674,8 @@ public:
 /**
 *	Struct Type
 */
-class Struct {
+class Struct : ParentType {
 private:
-	/**
-	*	The name.
-	*/
-	string m_name;
 	/**
 	*	The attributes.
 	*/
@@ -613,14 +713,11 @@ public:
 		m_attributes = attributes;
 		foreach (k, v; inheritedVariables)
 			m_variables[k] = v;
+			
+		super(true);
 	}
 	
 	@property {
-		/**
-		*	Gets the name.
-		*/
-		string name() { return m_name; }
-
 		/**
 		*	Gets the variables.
 		*/
@@ -724,12 +821,8 @@ public:
 /**
 *	Class Type
 */
-class Class {
+class Class : ParentType {
 private:
-	/**
-	*	The name.
-	*/
-	string m_name;
 	/**
 	*	The parent.
 	*/
@@ -773,14 +866,11 @@ public:
 				m_variables[k] = v;
 			m_parent = parent;
 		}
+		
+		super(false);
 	}
 	
 	@property {
-		/**
-		*	Gets the name.
-		*/
-		string name() { return m_name; }
-
 		/**
 		*	Gets the parent.
 		*/
@@ -881,5 +971,98 @@ public:
 		}
 		else
 			writefln("%s\tAttributes: N/A", tabs);
+	}
+}
+
+/**
+*	Enumeration for expression types.
+*/
+enum ExpressionType {
+	LOR,
+	LO
+}
+
+/**
+*	Task expression.
+*/
+class TaskExpression {
+private:
+	/**
+	*	The type of the expression.
+	*/
+	ExpressionType m_type;
+public:
+	/**
+	*	Creates a new instance of TaskExpression.
+	*	Params:
+	*		type =	The type of the expression.
+	*/
+	this(ExpressionType type) {
+		m_type = type;
+	}
+	
+	@property {
+		/**
+		*	Gets the expression type.
+		*/
+		ExpressionType expressionType() { return m_type; }
+	}
+}
+
+/**
+*	LEFT OPERATOR RIGHT Expression.
+*/
+class LORExpression : TaskExpression {
+private:
+	/**
+	*	The expression.
+	*/
+	string[] m_expression; // LEFT OP RIGHT ex. a = b
+public:
+	/**
+	*	Creates a new instance of LORExpression.
+	*	Params:
+	*		expression =	The expression.
+	*/
+	this(string[] expression) {
+		m_expression = expression;
+	
+		super(ExpressionType.LOR);
+	}
+	
+	/**
+	*	Gets a string equivalent to the expression.
+	*/
+	override string toString() {
+		return format("%s %s %s", m_expression[0], m_expression[1], m_expression[2]);
+	}
+}
+
+/**
+*	LEFT OPERATOR expression.
+*/
+class LOExpression : TaskExpression {
+private:
+	/**
+	*	The expression.
+	*/
+	string[] m_expression; // LEFT OP ex. a++
+public:
+	/**
+	*	Creates a new instance of LOExpression.
+	*	Params:
+	*		expression =	The expression.
+	*/
+	this(string[] expression) {
+		m_expression = expression;
+	
+		super(ExpressionType.LO);
+	}
+	
+	/**
+	*	Gets a string equivalent to the expression.
+	*/
+	override string toString() {
+		return format("%s%s", m_expression[0], m_expression[1]);
 	}
 }

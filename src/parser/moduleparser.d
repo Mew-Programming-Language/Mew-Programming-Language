@@ -144,6 +144,8 @@ public:
 		bool resetAttributes = false;
 		string[] attributes;
 		string[string] aliases;
+		ModifierAccess1 modifier1 = ModifierAccess1._public;
+		ModifierAccess2 modifier2 = ModifierAccess2.none;
 		
 		// Loops through the source by its lines
 		while (m_line < m_source.length) {
@@ -199,6 +201,58 @@ public:
 				line = replace(line, k, v); // store information about alias + line later to report errors that are based on aliases
 			}
 			
+			bool wasModifier = false;
+			switch (line) {
+				// ModifierAccess1
+				case "public:":
+					modifier1 = ModifierAccess1._public;
+					wasModifier = true;
+					break;
+				case "protected:":
+					modifier1 = ModifierAccess1._protected;
+					wasModifier = true;
+					break;
+				case "private:":
+					modifier1 = ModifierAccess1._private;
+					wasModifier = true;
+					break;
+				case "personal:":
+					modifier1 = ModifierAccess1._personal;
+					wasModifier = true;
+					break;
+					
+				// ModifierAccess2
+				case "none:":
+					modifier2 = ModifierAccess2.none;
+					wasModifier = true;
+					break;
+				case "const:":
+					modifier2 = ModifierAccess2._const;
+					wasModifier = true;
+					break;
+				case "immutable:":
+					modifier2 = ModifierAccess2._immutable;
+					wasModifier = true;
+					break;
+				case "scope:":
+					modifier2 = ModifierAccess2._scope;
+					wasModifier = true;
+					break;
+				
+				// Clear
+				case "clear:":
+					modifier1 = ModifierAccess1._public;
+					modifier2 = ModifierAccess2.none;
+					wasModifier = true;
+					break;
+				
+				// not a modifier access
+				default: break;
+			}
+			if (wasModifier) {
+				m_line++;
+				continue;
+			}
 			// Splits the current line by space ... " "
 			scope auto lineSplit = split(line, " ");
 			
@@ -232,7 +286,8 @@ public:
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
 						m_fileName, m_line, m_source, attributes, aliases,
-						m_module.globalVariables
+						m_module.globalVariables,
+						m_module
 					);
 					if (taskParser.task) {
 						if (!m_module.addGlobalTask(taskParser.task))
@@ -247,7 +302,8 @@ public:
 					scope auto structParser = new StructParser();
 					structParser.parse(
 						m_fileName, m_line, m_source, attributes, aliases,
-						m_module.globalVariables
+						m_module.globalVariables,
+						m_module
 					);
 					if (structParser.strc) {
 						if (!m_module.addStruct(structParser.strc)) {
@@ -263,6 +319,7 @@ public:
 					classParser.parse(
 						m_fileName, m_line, m_source, attributes, aliases,
 						m_module.globalVariables,
+						m_module,
 						m_module.classes
 					);
 					if (classParser.cls) {
@@ -280,7 +337,7 @@ public:
 					size_t cline = m_line;
 					import parser.variableparser;
 					scope auto variableParser = new VariableParser!Variable;
-					if (variableParser.parse(m_fileName, m_line, line, attributes) && variableParser.var) {
+					if (variableParser.parse(m_fileName, m_line, line, attributes, modifier1, modifier2, m_module.structs.keys, m_module.classes.keys, null) && variableParser.var) {
 						if (!m_module.addGlobalVar(variableParser.var))
 							reportError(m_fileName, m_line, "Duplicate", "Variable name conflicting with an earlier local variable.");
 					}

@@ -11,6 +11,12 @@ module parser.namevalidator;
 
 // Std Imports
 import std.algorithm : canFind, startsWith;
+import std.array : split;
+import std.string : format;
+
+// Mew Imports
+import errors.report;
+import parser.parsingtypes;
 
 /**
 *	Validates a type name.
@@ -77,4 +83,167 @@ private bool isValidChars(string S) {
 		}
 	}
 	return true;
+}
+
+/**
+*	Handles a LO expression and validates expression names.
+*	Params:
+*		task =			The task with the expression.
+*		fileName =		The name of the file.
+*		lineNumber =	(ref) The current line.
+*		expression =	The expression to handle.
+*		mod =			The module.
+*/
+void handleLOExpression(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod) {
+	string[] names = split(expression[0], ".");
+	if (!names)
+		names = [expression[0]];
+	if (names.length > 2) {
+		reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
+	}
+	else {
+		if (names[0] in task.initVariables) {
+			if (names.length == 2) {
+				auto parent = task.initVariables[names[0]];
+				if (parent) {
+					if (parent.udt in mod.structs) {
+						auto parentType = mod.structs[parent.udt];
+						if (names[1] in parentType.childVariables)
+							task.addExp(new LOExpression(expression));
+						else
+							reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
+					}
+					else if (parent.udt in mod.classes) {
+						auto parentType = mod.classes[parent.udt];
+						if (names[1] in parentType.initVariables)
+							task.addExp(new LOExpression(expression));
+						else
+							reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
+						}
+					else {
+						reportError(fileName, lineNumber, "Call Error", format("%s", parent.name));
+						//reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
+					}
+				}
+				else {
+					reportError(fileName, lineNumber, "Call Error", "No parent found.");
+				}
+			}
+			else {
+				// local
+				task.addExp(new LOExpression(expression));
+			}
+		}
+		else
+			reportError(fileName, lineNumber, "Invalid Definition", format("'%s' is not defined.", expression[0]));
+	}
+}
+
+/**
+*	Handles a LOR expression and validates expression names.
+*	Params:
+*		task =			The task with the expression.
+*		fileName =		The name of the file.
+*		lineNumber =	(ref) The current line.
+*		expression =	The expression to handle.
+*		mod =			The module.
+*/
+void handleLORExpression(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod) {
+	bool leftMatch = false;
+	// LEFT
+	{
+		string expName = expression[0];
+		string[] names = split(expName, ".");
+		if (!names)
+			names = [expName];
+		if (names.length > 2) {
+			reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
+		}
+		else {
+			if (names[0] in task.initVariables) {
+				if (names.length == 2) {
+					auto parent = task.initVariables[names[0]];
+					if (parent) {
+						if (parent.udt in mod.structs) {
+							auto parentType = mod.structs[parent.udt];
+							if (names[1] in parentType.childVariables)
+								leftMatch = true;
+							else
+								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
+						}
+						else if (parent.udt in mod.classes) {
+							auto parentType = mod.classes[parent.udt];
+							if (names[1] in parentType.initVariables)
+								leftMatch = true;
+							else
+								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
+							}
+						else {
+							reportError(fileName, lineNumber, "Call Error", format("%s", parent.name));
+							//reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
+						}
+					}
+					else { 
+						reportError(fileName, lineNumber, "Call Error", "No parent found.");
+					}
+				}
+				else {
+					// local
+					leftMatch = true;
+				}
+			}
+			else
+				reportError(fileName, lineNumber, "Invalid Definition", format("'%s' is not defined.", expName));
+		}
+	}
+	
+	if (!leftMatch)
+		return;
+	
+	// RIGHT
+	{
+		string expName = expression[2];
+		string[] names = split(expName, ".");
+		if (!names)
+			names = [expName];
+		if (names.length > 2) {
+			reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
+		}
+		else {
+			if (names[0] in task.initVariables) {
+				if (names.length == 2) {
+					auto parent = task.initVariables[names[0]];
+					if (parent) {
+						if (parent.udt in mod.structs) {
+							auto parentType = mod.structs[parent.udt];
+							if (names[1] in parentType.childVariables)
+								task.addExp(new LORExpression(expression));
+							else
+								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
+						}
+						else if (parent.udt in mod.classes) {
+							auto parentType = mod.classes[parent.udt];
+							if (names[1] in parentType.initVariables)
+								task.addExp(new LORExpression(expression));
+							else
+								reportError(fileName, lineNumber, "Invalid Member", format("'%s' is not a member of '%s'", names[1], parent.name));
+							}
+						else {
+							reportError(fileName, lineNumber, "Call Error", format("%s", parent.name));
+							//reportError(fileName, lineNumber, "Call Error", "Cannot call a child of a non-parental type.");
+						}
+					}
+					else {
+						reportError(fileName, lineNumber, "Call Error", "No parent found.");
+					}
+				}
+				else {
+					// local
+					task.addExp(new LORExpression(expression));
+				}
+			}
+			else
+				reportError(fileName, lineNumber, "Invalid Definition", format("'%s' is not defined.", expName));
+		}
+	}
 }

@@ -54,7 +54,7 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables, bool isConstructor = false) {
+		Variable[string] inheritedVariables, Module mod, bool isConstructor = false, ParentType parent = null) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -133,7 +133,7 @@ public:
 						reportError(fileName, lineNumber, "Invalid Task Syntax", "Nested tasks are disallowed.");
 						return;
 					}
-					auto tokenized = tokenizeTask(fileName, lineNumber, line);
+					scope auto tokenized = tokenizeTask(fileName, lineNumber, line, mod.structs.keys, mod.classes.keys, null);
 					auto name = tokenized[0];
 					if (!name)
 						break;
@@ -148,26 +148,40 @@ public:
 					foreach (param; parameters) {
 						import parser.variableparser;
 						scope auto variableParser = new VariableParser!Variable;
-						variableParser.parse2(param, fileName, lineNumber, line, null);
+						variableParser.parse2(param, fileName, lineNumber, line, null, ModifierAccess1._private, ModifierAccess2.none);
 						if (variableParser.var) {
 							params ~= variableParser.var;
 						}
 					}
 					
-					m_task = new Task(name, returnType, params, attributes, inheritedVariables);
+					m_task = new Task(name, returnType, params, attributes, inheritedVariables, parent);
 					break;
 				}
 				
 				default: {
 					size_t cline = lineNumber;
-					import parser.variableparser;
-					scope auto variableParser = new VariableParser!Variable;
-					if (variableParser.parse(fileName, lineNumber, line, null) && variableParser.var) {
-						if (!m_task.addVar(variableParser.var))
-							reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");
+					
+					// parse instructions ...
+					auto expression = tokenizeExpression1(fileName, lineNumber, line);
+					if (!expression[0]) {
+						expression = tokenizeExpression2(fileName, lineNumber, line);
+						if (!expression[1]) {
+							// VARIABLE
+							import parser.variableparser;
+							scope auto variableParser = new VariableParser!Variable;
+							if (variableParser.parse(fileName, lineNumber, line, null, ModifierAccess1._private, ModifierAccess2.none, mod.structs.keys, mod.classes.keys, null) && variableParser.var) {
+								if (!m_task.addVar(variableParser.var))
+									reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");
+							}
+						}
+						else {
+							// LEFT_HAND_OP ex. a++
+							handleLOExpression(m_task, fileName, lineNumber, [expression[0], expression[1]], mod);
+						}
 					}
 					else {
-						// parse instructions ...
+						// LEFT_HAND OP RIGHT_HAND ex. a += b
+						handleLORExpression(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], mod);
 					}
 					break;
 				}

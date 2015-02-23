@@ -48,11 +48,18 @@ public:
 	*		lineNumber =		(ref) The current line.
 	*		line =				The current line text.
 	*		attributes =		The attributes.
+	*		modifier1 =			The first modifier access.
+	*		modifier2 =			The second modifier access.
+	*		structs =			The struct types.
+	*		classes =			The class types.
+	*		enums =				The enum types.
 	*	Returns: True if the variable was parsed successfully, otherwise false.
 	*/
-	bool parse(string fileName, ref size_t lineNumber, string line, string[] attributes) {
-		auto tokenized = tokenizeVariable(fileName, lineNumber, line);
-		return parse2(tokenized, fileName, lineNumber, line, attributes);
+	bool parse(string fileName, ref size_t lineNumber, string line, string[] attributes,
+		ModifierAccess1 modifier1, ModifierAccess2 modifier2,
+		string[] structs, string[] classes, string[] enums) {
+		auto tokenized = tokenizeVariable(fileName, lineNumber, line, structs, classes, enums);
+		return parse2(tokenized, fileName, lineNumber, line, attributes, modifier1, modifier2);
 	}
 	
 	/**
@@ -63,9 +70,12 @@ public:
 	*		lineNumber =		(ref) The current line.
 	*		line =				The current line text.
 	*		attributes =	The attributes.
+	*		modifier1 =			The first modifier access.
+	*		modifier2 =			The second modifier access.
 	*	Returns: True if the variable was parsed successfully, otherwise false.
 	*/
-	bool parse2(ATypeTuple tokenized, string fileName, ref size_t lineNumber, string line, string[] attributes) {
+	bool parse2(ATypeTuple tokenized, string fileName, ref size_t lineNumber, string line, string[] attributes,
+		ModifierAccess1 modifier1, ModifierAccess2 modifier2) {
 		if (tokenized[0] != AType.error) {
 			if (tokenized[2] == ATypeDeclaration.single) {
 				// POD / UDT
@@ -77,7 +87,9 @@ public:
 				}
 				string value = tokenized[4];
 				
-				m_var = new T(type, name, value, attributes);
+				m_var = new T(type, name, value, attributes, modifier1, modifier2);
+				if (tokenized[5])
+					m_var.setUDT(tokenized[5]);
 				return true;
 			}
 			else {
@@ -91,7 +103,7 @@ public:
 					return false;
 				}
 					
-				m_var = new T(declaration, type1, type2, name, attributes);
+				m_var = new T(declaration, type1, type2, name, attributes, modifier1, modifier2);
 				return true;
 			}
 		}

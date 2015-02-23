@@ -54,7 +54,7 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables) {
+		Variable[string] inheritedVariables, Module mod) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -63,6 +63,8 @@ public:
 		// Sets the inherited aliases.
 		foreach (k, v; ialiases)
 			aliases[k] = v;
+		ModifierAccess1 modifier1 = ModifierAccess1._public;
+		ModifierAccess2 modifier2 = ModifierAccess2.none;
 		
 		// Loops through the source by its lines
 		while (lineNumber < source.length) {
@@ -118,6 +120,59 @@ public:
 				line = replace(line, k, v); // store information about alias + line later to report errors that are based on aliases
 			}
 			
+			bool wasModifier = false;
+			switch (line) {
+				// ModifierAccess1
+				case "public:":
+					modifier1 = ModifierAccess1._public;
+					wasModifier = true;
+					break;
+				case "protected:":
+					modifier1 = ModifierAccess1._protected;
+					wasModifier = true;
+					break;
+				case "private:":
+					modifier1 = ModifierAccess1._private;
+					wasModifier = true;
+					break;
+				case "personal:":
+					modifier1 = ModifierAccess1._personal;
+					wasModifier = true;
+					break;
+					
+				// ModifierAccess2
+				case "none:":
+					modifier2 = ModifierAccess2.none;
+					wasModifier = true;
+					break;
+				case "const:":
+					modifier2 = ModifierAccess2._const;
+					wasModifier = true;
+					break;
+				case "immutable:":
+					modifier2 = ModifierAccess2._immutable;
+					wasModifier = true;
+					break;
+				case "scope:":
+					modifier2 = ModifierAccess2._scope;
+					wasModifier = true;
+					break;
+				
+				// Clear
+				case "clear:":
+					modifier1 = ModifierAccess1._public;
+					modifier2 = ModifierAccess2.none;
+					wasModifier = true;
+					break;
+				
+				// not a modifier access
+				default: break;
+			}
+			if (wasModifier) {
+				lineNumber++;
+				continue;
+			}
+			
 			bool isConstructor = false;
 			if (startsWith(line, "~this(") && endsWith(line, ":")) { // destructor ...
 				line = "task free_" ~ line[1 .. $]; // makes it valid for parsing ...
@@ -140,7 +195,7 @@ public:
 						reportError(fileName, lineNumber, "Invalid Struct Syntax", "Nested structs are disallowed.");
 						return;
 					}
-					auto tokenized = tokenizeStruct(fileName, lineNumber, line);
+					scope auto tokenized = tokenizeStruct(fileName, lineNumber, line);
 					auto name = tokenized[0];
 					if (!name)
 						break;
@@ -158,7 +213,10 @@ public:
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
 						fileName, lineNumber, source, attributes, aliases,
-						inheritedVariables, isConstructor
+						inheritedVariables, 
+						mod,
+						isConstructor,
+						m_struct
 					);
 					if (taskParser.task) {
 						if (!m_struct.addTask(taskParser.task))
@@ -171,7 +229,7 @@ public:
 					size_t cline = lineNumber;
 					import parser.variableparser;
 					scope auto variableParser = new VariableParser!StructVariable;
-					if (variableParser.parse(fileName, lineNumber, line, attributes) && variableParser.var) {
+					if (variableParser.parse(fileName, lineNumber, line, attributes, modifier1, modifier2, mod.structs.keys, mod.classes.keys, null) && variableParser.var) {
 						if (!m_struct.addVar(variableParser.var))
 							reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");
 					}
