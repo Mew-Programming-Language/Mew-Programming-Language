@@ -233,7 +233,7 @@ public:
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
 						fileName, lineNumber, source, attributes, aliases,
-						inheritedVariables, mod,
+						m_class.variables, mod,
 						modifier1, modifier2,
 						isConstructor,
 						m_class
@@ -249,7 +249,7 @@ public:
 					size_t cline = lineNumber;
 					import parser.variableparser;
 					scope auto variableParser = new VariableParser!StructVariable;
-					if (variableParser.parse(fileName, lineNumber, line, attributes, modifier1, modifier2, mod.structs.keys, mod.classes.keys, null) && variableParser.var) {
+					if (variableParser.parse(fileName, lineNumber, line, attributes, modifier1, modifier2, mod.structs.keys ~ mod.cextern, mod.classes.keys, null) && variableParser.var) {
 						if (!m_class.addVar(variableParser.var))
 							reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");
 					}

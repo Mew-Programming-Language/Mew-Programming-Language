@@ -42,7 +42,9 @@ bool validName(string name, bool ignore = false) {
 *	Enumeration for datatypes.
 */
 private enum DTs = [
-	"is", "null", "this", "~this",
+	"import", "include", "cextern",
+	"is", "null",
+	"this", "~this", "super",
 	"byte", "short", "int", "long",
 	"ubyte", "ushort", "uint", "ulong",
 	"float", "double", "real",
@@ -78,7 +80,8 @@ private bool isValidChars(string S) {
 	foreach (c; S) {
 		if (!(c >= 65 && c <= 90) &&
 			!(c >= 97 && c <= 122) &&
-			!(c == 95)) {
+			!(c == 95) &&
+			!(c >= 48 && c <= 57)) {
 			return false;
 		}
 	}
@@ -102,9 +105,9 @@ void handleLOExpression(Task task, string fileName, ref size_t lineNumber, strin
 		reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
 	}
 	else {
-		if (names[0] in task.initVariables) {
+		if (names[0] in task.variables) {
 			if (names.length == 2) {
-				auto parent = task.initVariables[names[0]];
+				auto parent = task.variables[names[0]];
 				if (parent) {
 					if (parent.udt in mod.structs) {
 						auto parentType = mod.structs[parent.udt];
@@ -157,9 +160,9 @@ void handleLOExpression(Task task, string fileName, ref size_t lineNumber, strin
 *		expression =	The expression to handle.
 *		mod =			The module.
 */
-void handleLORExpression(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod) {
-	bool leftMatch = false;
+auto handleLORExpression(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod, bool checkRight = true) {
 	// LEFT
+	Variable leftVar;
 	{
 		string expName = expression[0];
 		string[] names = split(expName, ".");
@@ -169,16 +172,16 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 			reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
 		}
 		else {
-			if (names[0] in task.initVariables) {
+			if (names[0] in task.variables) {
 				if (names.length == 2) {
-					auto parent = task.initVariables[names[0]];
+					auto parent = task.variables[names[0]];
 					if (parent) {
 						if (parent.udt in mod.structs) {
 							auto parentType = mod.structs[parent.udt];
 							if (names[1] in parentType.childVariables) {
 								auto var = parentType.childVariables[names[1]];
 								if (var.modifier1 == ModifierAccess1._public)
-									leftMatch = true;
+									leftVar = var;
 								else
 									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
 							}
@@ -190,7 +193,7 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 							if (names[1] in parentType.initVariables) {
 								auto var = parentType.initVariables[names[1]];
 								if (var.modifier1 == ModifierAccess1._public)
-									leftMatch = true;
+									leftVar = var;
 								else
 									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
 							}
@@ -207,7 +210,7 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 				}
 				else {
 					// local
-					leftMatch = true;
+					leftVar = task.variables[names[0]];
 				}
 			}
 			else
@@ -215,9 +218,10 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 		}
 	}
 	
-	if (!leftMatch)
-		return;
-	
+	if (!leftVar)
+		return leftVar;
+	if (!checkRight)
+		return leftVar;
 	// RIGHT
 	{
 		string expName = expression[2];
@@ -228,16 +232,22 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 			reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
 		}
 		else {
-			if (names[0] in task.initVariables) {
+			if (names[0] in task.variables) {
 				if (names.length == 2) {
-					auto parent = task.initVariables[names[0]];
+					auto parent = task.variables[names[0]];
 					if (parent) {
 						if (parent.udt in mod.structs) {
 							auto parentType = mod.structs[parent.udt];
 							if (names[1] in parentType.childVariables) {
 								auto var = parentType.childVariables[names[1]];
-								if (var.modifier1 == ModifierAccess1._public)
-									task.addExp(new LORExpression(expression));
+								if (var.modifier1 == ModifierAccess1._public) {
+									if (leftVar.type1 != var.type1) {
+										expression[2] = format("(%s)%s", leftVar.udt, expression[2]);
+										task.addExp(new LORExpression(expression));
+									}
+									else
+										task.addExp(new LORExpression(expression));
+								}
 								else
 									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
 							}
@@ -248,8 +258,14 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 							auto parentType = mod.classes[parent.udt];
 							if (names[1] in parentType.initVariables) {
 								auto var = parentType.initVariables[names[1]];
-								if (var.modifier1 == ModifierAccess1._public)
-									task.addExp(new LORExpression(expression));
+								if (var.modifier1 == ModifierAccess1._public) {
+									if (leftVar.udt != var.udt) {
+										expression[2] = format("(%s)%s", leftVar.udt, expression[2]);
+										task.addExp(new LORExpression(expression));
+									}
+									else
+										task.addExp(new LORExpression(expression));
+								}
 								else
 									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
 							}
@@ -272,5 +288,140 @@ void handleLORExpression(Task task, string fileName, ref size_t lineNumber, stri
 			else
 				reportError(fileName, lineNumber, "Invalid Definition", format("'%s' is not defined.", expName));
 		}
+	}
+	return leftVar;
+}
+
+void handleLORCall(Task task, string fileName, ref size_t lineNumber, string[] expression, string[] params, Module mod) {
+	auto leftVar = handleLORExpression(task, fileName, lineNumber, expression, mod, false);
+	if (leftVar) {
+		// Check right hand ...
+		string expName = expression[2];
+		string[] names = split(expName, ".");
+		if (!names)
+			names = [expName];
+		if (names.length > 2) {
+			reportError(fileName, lineNumber, "Call Error", "The call is too nested.");
+		}
+		else {
+			if (names[0] in task.variables) {
+				if (names.length == 2) {
+					auto parent = task.variables[names[0]];
+					if (parent) {
+						if (parent.udt in mod.structs) {
+							auto parentType = mod.structs[parent.udt];
+							if (names[1] in parentType.tasks) {
+								auto call = parentType.tasks[names[1]];
+								if (call.modifier1 == ModifierAccess1._public) {
+									if ((call.parameters && !params) ||
+										(!call.parameters && params) ||
+										call.parameters.length != params.length) {
+										reportError(fileName, lineNumber, "Call Error", format("'%s' was called with invalid parameter count", names[1]));
+									}
+									else {
+										string[] nparams;
+										if (params) {
+											foreach (i; 0 .. params.length) {
+												auto param = params[i];
+												if (param !in task.variables) {
+													reportError(fileName, lineNumber, "Call Error", format("'%s' could not be passed as a parameter.", param));
+													return;
+												}
+											
+												auto varPass = task.variables[param];
+												auto varParam = call.parameters[i];
+											
+												if (varPass.udt != varParam.udt) {
+													nparams ~= format("(%s)%s", varParam.udt, param);
+												}
+												else
+													nparams ~= param;
+											}
+										}
+										
+										if (!call.udt) {
+											reportError(fileName, lineNumber, "Invalid Call Type", format("'%s.%s' is of type void and has no return value.", names[0], names[1]));
+											return;
+										}
+										
+										if (leftVar.udt != call.udt) {
+											expression[2] = format("(%s)%s", leftVar.udt, expression[2]);
+											task.addExp(new LORCallExpression(expression, nparams));
+										}
+										else
+											task.addExp(new LORCallExpression(expression, nparams));
+									}
+								}
+								else
+									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+							}
+							else
+								reportError(fileName, lineNumber, "Call Error", format("'%s' was not found in '%s'.", names[0], parentType.name));
+						}
+						else if (parent.udt in mod.classes) {
+							auto parentType = mod.classes[parent.udt];
+							if (names[1] in parentType.tasks) {
+								auto call = parentType.tasks[names[1]];
+								if (call.modifier1 == ModifierAccess1._public) {
+									if ((call.parameters && !params) ||
+										(!call.parameters && params) ||
+										call.parameters.length != params.length) {
+										reportError(fileName, lineNumber, "Call Error", format("'%s' was called with invalid parameter count", names[1]));
+									}
+									else {
+										string[] nparams;
+										if (params) {
+											foreach (i; 0 .. params.length) {
+												auto param = params[i];
+												if (param !in task.variables) {
+													reportError(fileName, lineNumber, "Call Error", format("'%s' could not be passed as a parameter.", param));
+													return;
+												}
+											
+												auto varPass = task.variables[param];
+												auto varParam = call.parameters[i];
+											
+												if (varPass.udt != varParam.udt) {
+													nparams ~= format("(%s)%s", varParam.udt, param);
+												}
+												else
+													nparams ~= param;
+											}
+										}
+										
+										if (!call.udt) {
+											reportError(fileName, lineNumber, "Invalid Call Type", format("'%s.%s' is of type void and has no return value.", names[0], names[1]));
+											return;
+										}
+										
+										if (leftVar.udt != call.udt) {
+											expression[2] = format("(%s)%s", leftVar.udt, expression[2]);
+											task.addExp(new LORCallExpression(expression, nparams));
+										}
+										else
+											task.addExp(new LORCallExpression(expression, nparams));
+									}
+								}
+								else
+									reportError(fileName, lineNumber, "Invalid Accessibility", format("'%s.%s' is not accessible from here.", names[0], names[1]));
+							}
+							else
+								reportError(fileName, lineNumber, "Call Error", format("'%s' was not found in '%s'.", names[0], parentType.name));
+						}
+					}
+				}
+				else {
+					reportError(fileName, lineNumber, "Call Error", format("'%s' is a variable and not a task.", names[0]));
+				}
+			}
+			else if (names[0] in mod.globalVariables) {
+				// check ...
+				reportError(fileName, lineNumber, "Call Error", "GLOBAL."); // TODO: Implement gloal calls ...
+			}
+		}
+	}
+	else {
+		// The left hand variable was invalid ...
+		reportError(fileName, lineNumber, "Call Error", "Invalid left hand.");
 	}
 }

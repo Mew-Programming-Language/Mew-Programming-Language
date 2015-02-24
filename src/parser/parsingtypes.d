@@ -49,6 +49,14 @@ private:
 	*/
 	Module[] m_imports;
 	/**
+	*	The C header includes.
+	*/
+	string[] m_includes;
+	/**
+	*	The C externs.
+	*/
+	string[] m_cextern;
+	/**
 	*	The global variables.
 	*/
 	Variable[string] m_globalVariables;
@@ -100,6 +108,16 @@ public:
 		*	Gets the imports.
 		*/
 		Module[] imports() { return m_imports; }
+		
+		/**
+		*	Gets the C header includes.
+		*/
+		string[] includes() { return m_includes; }
+		
+		/**
+		*	Gets the C externs.
+		*/
+		string[] cextern() { return m_cextern; }
 		
 		/**
 		*	Gets the global variables.
@@ -165,6 +183,24 @@ public:
 			if (cls.modifier1 == ModifierAccess1._public)
 				m_classes[cls.name] = cls;
 		}
+	}
+	
+	/**
+	*	Adds a C header include.
+	*	Params:
+	*		header =	The header to include.
+	*/
+	void addInclude(string header) {
+		m_includes ~= header;
+	}
+	
+	/**
+	*	Adds a C extern.
+	*	Params:
+	*		header =	The C extern.
+	*/
+	void addCExtern(string ext) {
+		m_cextern ~= ext;
 	}
 	
 	/**
@@ -238,6 +274,26 @@ public:
 		}
 		else
 			writeln("\tImports: N/A");
+		
+		if (m_includes) {
+			writeln("\tIncludes:");
+			foreach (inc; m_includes) {
+				writefln("\t\t%s", inc);
+				writeln();
+			}
+		}
+		else
+			writeln("\tIncludes: N/A");
+		
+		if (m_cextern) {
+			writeln("\tC-Externs:");
+			foreach (ext; m_cextern) {
+				writefln("\t\t%s", ext);
+				writeln();
+			}
+		}
+		else
+			writeln("\tC-Externs: N/A");
 			
 		if (m_initVariables) {
 			writeln("\tGlobal Vars:");
@@ -489,6 +545,10 @@ private:
 	*	The secondary modifier access.
 	*/
 	ModifierAccess2 m_modifier2;
+	/**
+	*	The udt.
+	*/
+	string m_udt;
 public:
 	/**
 	*	Creates a new instance of Task.
@@ -563,6 +623,18 @@ public:
 		*	Gets the second modifier access.
 		*/
 		ModifierAccess2 modifier2() { return m_modifier2; }
+		
+		/**
+		*	Gets the udt.
+		*/
+		string udt() { return m_udt; }
+	}
+	
+	/**
+	*	Sets the udt.
+	*/
+	void setUDT(string udt) {
+		m_udt = udt;
 	}
 	
 	/**
@@ -582,6 +654,11 @@ public:
 		return true;
 	}
 	
+	/**
+	*	Adds an expression to the task.
+	*	Params:
+	*		exp =	The expression to add.
+	*/
 	void addExp(TaskExpression exp) {
 		m_expressions ~= exp;
 	}
@@ -962,6 +1039,10 @@ public:
 			}
 		}
 		if (parent) {
+			auto sup = new Variable(AType._class, "super", null, null, ModifierAccess1._private, ModifierAccess2.none);
+			sup.setUDT(parent.name);
+			m_variables[sup.name] = sup;
+			
 			foreach (k, v; parent.initVariables) {
 				if (v.modifier1 == ModifierAccess1._public ||
 					v.modifier1 == ModifierAccess1._protected ||
@@ -1098,6 +1179,7 @@ public:
 */
 enum ExpressionType {
 	LOR,
+	LORCall,
 	LO
 }
 
@@ -1149,11 +1231,68 @@ public:
 		super(ExpressionType.LOR);
 	}
 	
+	@property {
+		/**
+		*	Gets the expression.
+		*/
+		string[] expression() { return m_expression; }
+	}
+	
 	/**
 	*	Gets a string equivalent to the expression.
 	*/
 	override string toString() {
 		return format("%s %s %s", m_expression[0], m_expression[1], m_expression[2]);
+	}
+}
+
+/**
+*	LEFT OPERATOR RIGHT Call Expression.
+*/
+class LORCallExpression : TaskExpression {
+private:
+	/**
+	*	The expression.
+	*/
+	string[] m_expression; // LEFT OP RIGHT ex. a = b()
+	/**
+	*	The parameters.
+	*/
+	string[] m_params; // PARAMETERS
+public:
+	/**
+	*	Creates a new instance of LORExpression.
+	*	Params:
+	*		expression =	The expression.
+	*/
+	this(string[] expression, string[] params) {
+		m_expression = expression;
+		m_params = params;
+
+		super(ExpressionType.LORCall);
+	}
+	
+	@property {
+		/**
+		*	Gets the expression.
+		*/
+		string[] expression() { return m_expression; }
+		
+		/**
+		*	Gets the parameters.
+		*/
+		string[] params() { return m_params; }
+	}
+	
+	/**
+	*	Gets a string equivalent to the expression.
+	*/
+	override string toString() {
+		import std.array : join;
+		if (m_params)
+			return format("%s %s %s(%s)", m_expression[0], m_expression[1], m_expression[2], join(m_params, ","));
+		else
+			return format("%s %s %s()", m_expression[0], m_expression[1], m_expression[2]);
 	}
 }
 
@@ -1176,6 +1315,10 @@ public:
 		m_expression = expression;
 	
 		super(ExpressionType.LO);
+	}
+	
+	@property {
+		string[] expression() { return m_expression; }
 	}
 	
 	/**

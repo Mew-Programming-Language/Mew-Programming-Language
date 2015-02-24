@@ -104,6 +104,8 @@ public:
 				}
 					
 				m_var = new T(declaration, type1, type2, name, attributes, modifier1, modifier2);
+				if (tokenized[5])
+					m_var.setUDT(tokenized[5]);
 				return true;
 			}
 		}

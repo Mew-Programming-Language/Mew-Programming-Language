@@ -134,6 +134,7 @@ public:
 						return;
 					}
 					scope auto tokenized = tokenizeTask(fileName, lineNumber, line, mod.structs.keys, mod.classes.keys, null);
+					
 					auto name = tokenized[0];
 					if (!name)
 						break;
@@ -143,7 +144,8 @@ public:
 					}
 					auto returnType = tokenized[1];
 					
-					auto parameters = tokenized[2];		
+					auto parameters = tokenized[2];	
+
 					Variable[] params;
 					foreach (param; parameters) {
 						import parser.variableparser;
@@ -153,8 +155,9 @@ public:
 							params ~= variableParser.var;
 						}
 					}
-					
 					m_task = new Task(name, returnType, params, attributes, inheritedVariables, modifier1, modifier2, parent);
+					if (tokenized[3])
+						m_task.setUDT(tokenized[3]);
 					break;
 				}
 				
@@ -164,12 +167,14 @@ public:
 					// parse instructions ...
 					auto expression = tokenizeExpression1(fileName, lineNumber, line);
 					if (!expression[0]) {
+						if (expression[3]) // isCall
+							break;
 						expression = tokenizeExpression2(fileName, lineNumber, line);
 						if (!expression[1]) {
 							// VARIABLE
 							import parser.variableparser;
 							scope auto variableParser = new VariableParser!Variable;
-							if (variableParser.parse(fileName, lineNumber, line, null, ModifierAccess1._private, ModifierAccess2.none, mod.structs.keys, mod.classes.keys, null) && variableParser.var) {
+							if (variableParser.parse(fileName, lineNumber, line, null, ModifierAccess1._private, ModifierAccess2.none, mod.structs.keys ~ mod.cextern, mod.classes.keys, null) && variableParser.var) {
 								if (!m_task.addVar(variableParser.var))
 									reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");
 							}
@@ -181,7 +186,10 @@ public:
 					}
 					else {
 						// LEFT_HAND OP RIGHT_HAND ex. a += b
-						handleLORExpression(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], mod);
+						if (expression[3]) // isCall
+							handleLORCall(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], expression[4], mod);
+						else
+							handleLORExpression(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], mod);
 					}
 					break;
 				}

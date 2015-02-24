@@ -12,7 +12,7 @@ module parser.moduleparser;
 // Std Imports
 import std.string : format;
 import std.array : replace, split;
-import std.algorithm : strip, canFind;
+import std.algorithm : strip, canFind, endsWith;
 
 // Mew Imports
 import errors.report;
@@ -280,6 +280,42 @@ public:
 					break;
 				}
 				
+				case "include": {
+					if (lineSplit.length != 2) {
+						reportError(m_fileName, m_line, "Invalid Syntax", "Invalid include syntax.");
+					}
+					else {
+						string includeName = lineSplit[1];
+						if (includeName.length < 3) {
+							reportError(m_fileName, m_line, "Invalid Syntax", "Invalid include string length.");
+						}
+						else {
+							if (includeName[0] != '"' || includeName[$-1] != '"') {
+								reportError(m_fileName, m_line, "Invalid Syntax", "Include value doesn't take a string.");
+							}
+							else {
+								includeName = includeName[1 .. $-1];
+								if (!endsWith(includeName, ".h")) {
+									reportError(m_fileName, m_line, "Invalid Include", "Include value is not a C-header file.");
+								}
+								else
+									m_module.addInclude(includeName);
+							}
+						}
+					}
+					break;
+				}
+				
+				case "cextern": {
+					if (lineSplit.length != 2) {
+						reportError(m_fileName, m_line, "Invalid Syntax", "Invalid cextern syntax.");
+					}
+					else {
+						m_module.addCExtern(lineSplit[1]);
+					}
+					break;
+				}
+				
 				case "task": {
 					size_t cline = m_line;
 					import parser.taskparser;
@@ -314,6 +350,7 @@ public:
 					}
 					break;
 				}
+				
 				case "class": {
 					size_t cline = m_line;
 					import parser.classparser;
@@ -340,7 +377,7 @@ public:
 					size_t cline = m_line;
 					import parser.variableparser;
 					scope auto variableParser = new VariableParser!Variable;
-					if (variableParser.parse(m_fileName, m_line, line, attributes, modifier1, modifier2, m_module.structs.keys, m_module.classes.keys, null) && variableParser.var) {
+					if (variableParser.parse(m_fileName, m_line, line, attributes, modifier1, modifier2, m_module.structs.keys ~ m_module.cextern, m_module.classes.keys, null) && variableParser.var) {
 						if (!m_module.addGlobalVar(variableParser.var))
 							reportError(m_fileName, m_line, "Duplicate", "Variable name conflicting with an earlier local variable.");
 					}

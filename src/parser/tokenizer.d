@@ -207,14 +207,14 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		}
 	}
 	
+	string udt = data[0];
 	if (!isADT) {
 		type = data[0];
 		declaration = ATypeDeclaration.single;
 	}
-	
+		
 	AType dataType;
 	AType dataType2 = AType.error;
-	string udt;
 	if (canFind(type, ":")) {
 		auto types = split(type, ":");
 		if (types.length != 2) {
@@ -252,15 +252,12 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 	}
 	else if (canFind(structs, type)) {
 		dataType = AType._struct;
-		udt = type;
 	}
 	else if (canFind(classes, type)) {
 		dataType = AType._class;
-		udt = type;
 	}
 	else if (canFind(enums, type)) {
 		dataType = AType._enum;
-		udt = type;
 	}
 	else if (!setType(type, dataType)) {
 		reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set variable type.");
@@ -330,16 +327,16 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		tupleReturn[2] = declaration;
 		tupleReturn[3] = data[1];
 		tupleReturn[4] = valueSelect;
-		tupleReturn[5] = null;
+		tupleReturn[5] = udt;
 		return tupleReturn;
 	}
 }
 
-//name,returnType,parameters
+//name,returnType,parameters,udt
 /**
 *	Task tuple
 */
-alias ATaskTuple = Tuple!(string,AType,ATypeTuple[]);
+alias ATaskTuple = Tuple!(string,AType,ATypeTuple[],string);
 
 /**
 *	Tokenizes a task.
@@ -356,6 +353,7 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] str
 	errorReturn[0] = null;
 	errorReturn[1] = AType.error;
 	errorReturn[2] = null;
+	errorReturn[3] = null;
 	
 	if (!canFind(input, "(")) {
 		reportError(fileName, lineNumber, "Invalid Task Syntax", "Cannot find '('");
@@ -378,8 +376,11 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] str
 		return errorReturn;
 	}
 	
+	string udt;
 	if (taskInfo.length == 3) {
-		returnType = tokenizeVariable(fileName, lineNumber, taskInfo[1] ~ " " ~ taskInfo[2], structs, classes, enums)[0];
+		auto rType = tokenizeVariable(fileName, lineNumber, taskInfo[1] ~ " " ~ taskInfo[2], structs, classes, enums);
+		returnType = rType[0];
+		udt = rType[5];
 	}
 	else if (taskInfo.length != 2) {
 		reportError(fileName, lineNumber, "Invalid Task Syntax", "Cannot parse task info.");
@@ -413,6 +414,7 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] str
 		returnTask[0] = taskInfo[1];
 	returnTask[1] = returnType;
 	returnTask[2] = paramTuples;
+	returnTask[3] = udt;
 	return returnTask;
 }
 
@@ -533,11 +535,11 @@ auto tokenizeClass(string fileName, size_t lineNumber, string input) {
 //	Note:
 //		Expressions do not report errors due to the fact there might be multiple expression validations. Some may fail, while otherwise will succeed.
 
-// leftHand, operator, rightHand
+// leftHand, operator, rightHand, isCall, params
 /**
 *	Expression Tuple.
 */
-alias AExpressionTuple = Tuple!(string,string,string);
+alias AExpressionTuple = Tuple!(string,string,string,bool,string[]);
 
 /**
 *	Enumeration of LOR operators.
@@ -564,6 +566,8 @@ auto tokenizeExpression1(string fileName, size_t lineNumber, string input) {
 	errorReturn[0] = null;
 	errorReturn[1] = null;
 	errorReturn[2] = null;
+	errorReturn[3] = false;
+	errorReturn[4] = null;
 	
 	auto expData = split(input, " ");
 	if (expData.length != 3) {
@@ -574,10 +578,49 @@ auto tokenizeExpression1(string fileName, size_t lineNumber, string input) {
 		return errorReturn;
 	}
 	
+	bool isCall = false;
+	string name = expData[2];
+	string[] params;
+	if (canFind(expData[2], "(") &&
+		endsWith(expData[2], ")")) {
+		isCall = true;
+		
+		string callExpression = expData[2];
+		
+		/*if (startsWith(callExpression, "cast<")) {
+			// do casting ...
+			return errorReturn; // casting not implemented ...
+		}*/
+		
+		if (endsWith(callExpression, "()")) {
+			name = callExpression[0 .. $-2];
+		}
+		else {
+			auto callData = split(callExpression, "(");
+			if (callData.length != 2) {
+				reportError(fileName, lineNumber, "Invalid Call Syntax", "Found multiple '('");
+				return errorReturn;
+			}
+			else {
+				if (!endsWith(callData[1], ")")) {
+					reportError(fileName, lineNumber, "Invalid Call Syntax", "Does not end with ')'");
+					return errorReturn;
+				}
+				else {
+					string _params = callData[1][0 .. $-1];
+					params = split(_params, ",");
+					name = callData[0];
+				}
+			}
+		}
+	}
+	
 	AExpressionTuple expression;
 	expression[0] = expData[0];
 	expression[1] = expData[1];
-	expression[2] = expData[2];
+	expression[2] = name;
+	expression[3] = isCall;
+	expression[4] = params;
 	return expression;
 }
 
