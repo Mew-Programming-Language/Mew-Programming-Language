@@ -1,3 +1,12 @@
+/*
+	This module is for Mew Library parsing.
+	
+	Authors:
+		Jacob Jensen / Bauss
+	License:
+		Apache License 2.0
+		https://github.com/Mew-Programming-Language/Mew-Programming-Language/blob/master/LICENSE
+*/
 module parser.mlibparser;
 
 import std.array : replace, join;

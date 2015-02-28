@@ -1,11 +1,11 @@
 /*
-	This module is for name validation for types.
+	This module is for expression parsing.
 	
 	Authors:
 		Jacob Jensen / Bauss
 	License:
 		Apache License 2.0
-		https://github.com/BaussProjects/Mew-Programming-Language/blob/master/LICENSE
+		https://github.com/Mew-Programming-Language/Mew-Programming-Language/blob/master/LICENSE
 */
 module parser.expressionparser;
 

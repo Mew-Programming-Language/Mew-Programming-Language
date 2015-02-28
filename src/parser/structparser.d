@@ -5,7 +5,7 @@
 		Jacob Jensen / Bauss
 	License:
 		Apache License 2.0
-		https://github.com/BaussProjects/Mew-Programming-Language/blob/master/LICENSE
+		https://github.com/Mew-Programming-Language/Mew-Programming-Language/blob/master/LICENSE
 */
 module parser.structparser;
 
