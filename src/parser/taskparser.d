@@ -16,9 +16,16 @@ import std.algorithm : strip, canFind;
 
 // Mew Imports
 import errors.report;
-import parser.parsingtypes;
 import parser.tokenizer;
 import parser.namevalidator;
+import parser.expressionparser;
+
+// Type Related Imports
+import parser.types.typecore;
+import parser.types.moduletype;
+import parser.types.variabletype;
+import parser.types.tasktype;
+import parser.types.expressions;
 
 /**
 *	Task parser.
@@ -155,9 +162,13 @@ public:
 							params ~= variableParser.var;
 						}
 					}
+					
+					if (mod.name == "main" && name == "main" && params) {
+						reportError(fileName, lineNumber, "Invalid Params", "Main task cannot take parameters.");
+						return; // only allow void parameters atm. do args later ...
+					}
+					
 					m_task = new Task(name, returnType, params, attributes, inheritedVariables, modifier1, modifier2, parent);
-					if (tokenized[3])
-						m_task.setUDT(tokenized[3]);
 					break;
 				}
 				

@@ -18,33 +18,24 @@ import std.conv : to;
 import errors.report;
 
 /**
-*	Enumeration for data types
+*	Enumeration for c data types.
 */
-enum AType : ushort {
-	error,
-	int8, int16, int32, int64,
-	uint8, uint16, uint32, uint64,
-	_float, _double, _real,
-	_bool, _char, _string,
-	_size_t, _ptrdiff_t,
-	_struct, _class,
-	_enum
-}
-
-/**
-*	Enumeration for declarations
-*/
-enum ATypeDeclaration : ushort {
-	single,
-	array,
-	list,
-	map,
-	orderlist,
-	ordermap,
-	linklist,
-	stack,
-	queue
-}
+enum ADataTypes = [
+	"byte" : "char",
+	"short" : "short",
+	"int" : "int",
+	"long" : "lonng",
+	"ubyte" : "unsigned char",
+	"ushort" : "unsigned short",
+	"uint" : "unsigned int",
+	"ulong" : "unsigned long",
+	"float" : "float",
+	"double" : "double",
+	"float" : "long double",
+	"bool" : "bool",
+	"char" : "char",
+	"string" : "Array_string"
+];
 
 /**
 *	Enumeration for ADT's
@@ -60,11 +51,21 @@ private enum AbstractDataTypes = [
 	"queue"
 ];
 
-//type1,type2,declaration,name,defaultValue,udt
+/**
+*	The type of single data types.
+*/
+private enum ADataSingleType {
+	pod,
+	_struct,
+	_class,
+	_enum
+}
+
+//type,name,defaultValue
 /**
 *	Type tuple.
 */
-alias ATypeTuple = Tuple!(AType,AType,ATypeDeclaration,string,string,string);
+alias ATypeTuple = Tuple!(string,string,string);
 
 /**
 *	Checks whether an input is numeric or not.
@@ -84,37 +85,34 @@ private bool isNumericValue(string input, bool isFloat) {
 }
 
 /**
-*	Sets the type by a string reference.
+*	Sets the c type by a string reference.
 *	Params:
 *		type =		The type reference string.
-*		dataType =	The data type to set.
+*		setType =	The type to set.
 *	Returns: True if the datatype was set.
 */
-private bool setType(string type, ref AType dataType) {
-	switch (type) {
-		case "byte": dataType = AType.int8; break;
-		case "short": dataType = AType.int16; break;
-		case "int": dataType = AType.int32; break;
-		case "long": dataType = AType.int64; break;
-		case "ubyte": dataType = AType.uint8; break;
-		case "ushort": dataType = AType.uint16; break;
-		case "uint": dataType = AType.uint32; break;
-		case "ulong": dataType = AType.uint64; break;
-		case "float": dataType = AType._float; break;
-		case "double": dataType = AType._double; break;
-		case "real": dataType = AType._real; break;
-		case "bool": dataType = AType._bool; break;
-		case "char": dataType = AType._char; break;
-		case "string": dataType = AType._string; break;
-		case "size_t": dataType = AType._size_t; break;
-		case "ptrdiff_t": dataType = AType._ptrdiff_t; break;
-		
-		default: {
-			//onReportError("INVALID_VARIABLE_TYPE", 3);
-			return false;
-		}
+private bool setType(string type, ref string setType) {
+	import csettings;
+	if (type in ADataTypes) {
+		setType = ADataTypes[type];
+		return true;
 	}
-	return true;
+	else if (type == "size_t") {
+		if (outputFormat == OSFormat.x86)
+			setType = ADataTypes["uint"];
+		else
+			setType = ADataTypes["ulong"];
+		return true;
+	}
+	else if (type == "ptrdiff_t") {
+		if (outputFormat == OSFormat.x86)
+			setType = ADataTypes["int"];
+		else
+			setType = ADataTypes["long"];
+		return true;
+	}
+	else
+		return false;
 }
 
 /**
@@ -127,17 +125,15 @@ private bool setType(string type, ref AType dataType) {
 */
 auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[] structs, string[] classes, string[] enums) {
 	ATypeTuple errorReturn;
-	errorReturn[0] = AType.error;
-	errorReturn[1] = AType.error;
-	errorReturn[2] = ATypeDeclaration.single;
-	errorReturn[3] = null;
-	errorReturn[4] = null;
-	errorReturn[5] = null;
+	errorReturn[0] = null;
+	errorReturn[1] = null;
+	errorReturn[2] = null;
 	
 	if (!input) {
 		reportError(fileName, lineNumber, "Invalid Variable Syntax", "No input source.");
 		return errorReturn;
 	}
+	
 	if (!canFind(input, " ")) {
 		reportError(fileName, lineNumber, "Invalid Variable Syntax", "No spaces found.");
 		return errorReturn;
@@ -153,11 +149,13 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 	}
 	
 	string type;
-	ATypeDeclaration declaration;
+	string dataType;
+	ADataSingleType dataSingleType = ADataSingleType.pod;
 	bool isADT = false;
+	string setAdt;
 	foreach (adt; AbstractDataTypes) {
 		if (startsWith(data[0], adt)) {
-			if (data.length != 2) {
+			if (data.length != 2) { // not allowing adts to have values ...
 				reportError(fileName, lineNumber, "Invalid Variable Syntax", "Non-parsable ADT syntax.");
 				return errorReturn;
 			}
@@ -171,15 +169,29 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 			}
 			type = arrayType[1 .. $-1];
 			
-			declaration = to!ATypeDeclaration(adt);
-			
 			switch (adt) {
 				case "array":
+					setAdt = "Array";
+					goto case "sadt";
 				case "list":
+					setAdt = "List";
+					goto case "sadt";
 				case "orderlist":
+					setAdt = "OrderList";
+					goto case "sadt";
 				case "linklist":
+					setAdt = "LinkList";
+					goto case "sadt";
 				case "stack":
-				case "queue": {
+					setAdt = "Stack";
+					goto case "sadt";
+				case "queue":
+					setAdt = "Queue";
+					goto case "sadt";
+				case "sadt": {
+					if (!setAdt)
+						goto default;
+					dataType = setAdt ~ "_" ~ type;
 					if (canFind(arrayType, ":")) {
 						reportError(fileName, lineNumber, "Invalid Variable Syntax", "Found ':' ... ':' is only avaiable for multi-type ADT's");
 						return errorReturn;
@@ -187,8 +199,16 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 					break;
 				}
 				
+				
 				case "map":
-				case "ordermap": {
+					setAdt = "Map";
+					goto case "dadt";
+				case "ordermap":
+					setAdt = "OrderMap";
+					goto case "dadt";
+				case "dadt": {
+					if (!setAdt)
+						goto default;
 					if (!canFind(arrayType, ":")) {
 						reportError(fileName, lineNumber, "Invalid Variable Syntax", "Couldn't find ':' which is essential for multi-type ADT's.");
 						return errorReturn;
@@ -207,14 +227,10 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		}
 	}
 	
-	string udt = data[0];
 	if (!isADT) {
 		type = data[0];
-		declaration = ATypeDeclaration.single;
 	}
-		
-	AType dataType;
-	AType dataType2 = AType.error;
+	
 	if (canFind(type, ":")) {
 		auto types = split(type, ":");
 		if (types.length != 2) {
@@ -222,42 +238,32 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 			return errorReturn;
 		}
 		
-		if (canFind(structs, types[0])) {
-			dataType = AType._struct;
-		}
-		else if (canFind(classes, types[0])) {
-			dataType = AType._class;
-		}
-		else if (canFind(enums, types[0])) {
-			dataType = AType._enum;
+		if (canFind(structs, types[0]) ||
+			canFind(classes, types[0]) ||
+			canFind(structs, types[0])) {
+			dataType = types[0];
 		}
 		else if (!setType(types[0], dataType)) {
 			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set first variable type.");
 			return errorReturn;
 		}
 		
-		if (canFind(structs, types[0])) {
-			dataType2 = AType._struct;
-		}
-		else if (canFind(classes, types[0])) {
-			dataType2 = AType._class;
-		}
-		else if (canFind(enums, types[0])) {
-			dataType2 = AType._enum;
+		string dataType2;
+		if (canFind(structs, types[1]) ||
+			canFind(classes, types[1]) ||
+			canFind(enums, types[1])) {
+			dataType2 = types[1];
 		}
 		else if (!setType(types[1], dataType2)) {
 			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set secondary variable type.");
 			return errorReturn;
 		}
+		dataType = setAdt ~ "_" ~ dataType ~ "_" ~ dataType2;
 	}
-	else if (canFind(structs, type)) {
-		dataType = AType._struct;
-	}
-	else if (canFind(classes, type)) {
-		dataType = AType._class;
-	}
-	else if (canFind(enums, type)) {
-		dataType = AType._enum;
+	else if (canFind(structs, type) ||
+		canFind(classes, type) ||
+		canFind(enums, type)) {
+		dataType = type;
 	}
 	else if (!setType(type, dataType)) {
 		reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not set variable type.");
@@ -267,22 +273,14 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 	if (data.length == 2) {
 		ATypeTuple tupleReturn;
 		tupleReturn[0] = dataType;
-		tupleReturn[1] = dataType2;
-		tupleReturn[2] = declaration;
-		tupleReturn[3] = data[1];
-		tupleReturn[4] = null;
-		tupleReturn[5] = udt;
+		tupleReturn[1] = data[1]; // name ...
+		tupleReturn[2] = null;
 		return tupleReturn;
 	}
-	else if (dataType == AType._struct ||
-		dataType == AType._class ||
-		dataType == AType._enum ||
-		dataType2 == AType._struct ||
-		dataType2 == AType._class ||
-		dataType2 == AType._enum) {
-			// udt's cannot have values atm. ...
-			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Cannot assign value to this type.");
-			return errorReturn;
+	else if (dataSingleType != ADataSingleType.pod) {
+		// structs, classes and enums can't have values atm.
+		reportError(fileName, lineNumber, "Invalid Variable Syntax", "Cannot assign value to this type.");
+		return errorReturn;
 	}
 	else {
 		int valueIndex = countUntil(input, "=");
@@ -292,8 +290,8 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		}
 		
 		string valueSelect = input[valueIndex + 2 .. $];
-		if (dataType == AType._char) {
-			if (!startsWith(valueSelect, "'") &&
+		if (type == "char") {
+			if (!startsWith(valueSelect, "'") ||
 				!endsWith(valueSelect, "'") ||
 				valueSelect.length != 3) {
 				reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not parse char value.");
@@ -301,42 +299,39 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 			}
 			valueSelect = to!string(valueSelect[1]);
 		}
-		else if (dataType == AType._string) {
-			if (!startsWith(valueSelect, "\"") &&
+		else if (type == "string") {
+			if (!startsWith(valueSelect, "\"") ||
 			!endsWith(valueSelect, "\"")) {
 				reportError(fileName, lineNumber, "Invalid Variable Syntax", "Could not parse string value.");
 				return errorReturn;
 			}
 			valueSelect = valueSelect[1 .. $-1];
 		}
-		else if (dataType == AType._bool) {
+		else if (type == "bool") {
 			if (valueSelect != "true" &&
 				valueSelect != "false") {
 				reportError(fileName, lineNumber, "Invalid Variable Syntax", "Cannot parse boolean value.");
 				return errorReturn;
 			}
 		}
-		else if (!isNumericValue(valueSelect, (dataType == AType._float || dataType == AType._double || dataType == AType._real))) {
+		else if (!isNumericValue(valueSelect, (type == "float" || type == "double" || type == "real"))) {
 			reportError(fileName, lineNumber, "Invalid Variable Syntax", "Cannot parse numeric value.");
 			return errorReturn;
 		}
 		
 		ATypeTuple tupleReturn;
 		tupleReturn[0] = dataType;
-		tupleReturn[1] = dataType2;
-		tupleReturn[2] = declaration;
-		tupleReturn[3] = data[1];
-		tupleReturn[4] = valueSelect;
-		tupleReturn[5] = udt;
+		tupleReturn[1] = data[1]; // name ...
+		tupleReturn[2] = valueSelect;
 		return tupleReturn;
 	}
 }
 
-//name,returnType,parameters,udt
+//name,returnType,parameters
 /**
 *	Task tuple
 */
-alias ATaskTuple = Tuple!(string,AType,ATypeTuple[],string);
+alias ATaskTuple = Tuple!(string,string,ATypeTuple[]);
 
 /**
 *	Tokenizes a task.
@@ -347,13 +342,10 @@ alias ATaskTuple = Tuple!(string,AType,ATypeTuple[],string);
 *	Returns: Task tuple for the task.
 */
 auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] structs, string[] classes, string[] enums) {
-	AType returnType = AType.error;
-	
 	ATaskTuple errorReturn;
 	errorReturn[0] = null;
-	errorReturn[1] = AType.error;
+	errorReturn[1] = null;
 	errorReturn[2] = null;
-	errorReturn[3] = null;
 	
 	if (!canFind(input, "(")) {
 		reportError(fileName, lineNumber, "Invalid Task Syntax", "Cannot find '('");
@@ -376,11 +368,10 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] str
 		return errorReturn;
 	}
 	
-	string udt;
+	string returnType;
 	if (taskInfo.length == 3) {
 		auto rType = tokenizeVariable(fileName, lineNumber, taskInfo[1] ~ " " ~ taskInfo[2], structs, classes, enums);
 		returnType = rType[0];
-		udt = rType[5];
 	}
 	else if (taskInfo.length != 2) {
 		reportError(fileName, lineNumber, "Invalid Task Syntax", "Cannot parse task info.");
@@ -397,7 +388,7 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] str
 		auto params = split(taskData[1][0 .. $-1], ",");
 		foreach (param; params) {
 			auto paramTuple = tokenizeVariable(fileName, lineNumber, param, structs, classes, enums);
-			if (paramTuple[0] == AType.error)
+			if (!paramTuple[0])
 				return errorReturn; // tokenizeVariable() already reports the error
 			paramTuples ~= paramTuple;
 		}
@@ -414,7 +405,6 @@ auto tokenizeTask(string fileName, size_t lineNumber, string input, string[] str
 		returnTask[0] = taskInfo[1];
 	returnTask[1] = returnType;
 	returnTask[2] = paramTuples;
-	returnTask[3] = udt;
 	return returnTask;
 }
 

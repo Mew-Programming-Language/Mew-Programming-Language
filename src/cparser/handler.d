@@ -114,6 +114,7 @@ bool parseMewLibary(string text) {
 			
 			case "struct": {
 				string name = data[1];
+				import std.stdio;
 				auto loc = cast(Location)to!size_t(data[2]);
 				if (!validLocation(loc, data[0])) {
 					reportError("MLIB", lineNumber, "Location Error", "Invalid location for 'struct'");

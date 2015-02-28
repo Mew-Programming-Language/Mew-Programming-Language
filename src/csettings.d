@@ -63,6 +63,10 @@ bool showSettings = false;
 *	Flag for printing types.
 */
 bool showTypes = false;
+/**
+*	Flag for creating .mlib file in output folder.
+*/
+bool createMewLibrary = false;
 
 // Version Settings
 /**

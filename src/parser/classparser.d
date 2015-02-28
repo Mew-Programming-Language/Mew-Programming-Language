@@ -16,9 +16,15 @@ import std.algorithm : strip, canFind, startsWith, endsWith;
 
 // Mew Imports
 import errors.report;
-import parser.parsingtypes;
 import parser.tokenizer;
 import parser.namevalidator;
+
+// Type Related Imports
+import parser.types.typecore;
+import parser.types.moduletype;
+import parser.types.classtype;
+import parser.types.variabletype;
+import parser.types.tasktype;
 
 /**
 *	Class parser.
@@ -224,6 +230,10 @@ public:
 					else {
 						reportError(fileName, lineNumber, "Invalid Inheritance", format("'%s' cannot inherit '%s', because it wasn't found!", name, parent));
 					}
+					
+					if (!mod.addClass(m_class)) {
+						reportError(fileName, lineNumber, "Duplicate", "Class name conflicting with an earlier local class.");
+					}
 					break;
 				}
 				
@@ -248,7 +258,7 @@ public:
 				default: {
 					size_t cline = lineNumber;
 					import parser.variableparser;
-					scope auto variableParser = new VariableParser!StructVariable;
+					scope auto variableParser = new VariableParser!Variable;
 					if (variableParser.parse(fileName, lineNumber, line, attributes, modifier1, modifier2, mod.structs.keys ~ mod.cextern, mod.classes.keys, null) && variableParser.var) {
 						if (!m_class.addVar(variableParser.var))
 							reportError(fileName, cline, "Duplicate", "Variable name conflicting with an earlier local variable.");

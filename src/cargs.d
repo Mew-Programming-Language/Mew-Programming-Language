@@ -207,6 +207,13 @@ void handleArguments(CArgument arg) {
 			break;
 		}
 		
+		case "mlib": {
+			if (arg.args)
+				throw new InvalidCArgumentsException("-mlib takes no arguments!");
+			createMewLibrary = true;
+			break;
+		}
+		
 		default:
 			throw new InvalidCArgumentsException("Invalid arguments passed.");
 			break;

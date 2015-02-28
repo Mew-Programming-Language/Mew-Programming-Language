@@ -18,9 +18,16 @@ import std.algorithm : strip, canFind, endsWith;
 import errors.report;
 import modules.naming;
 import modules.sources;
-import parser.parsingtypes;
 import parser.tokenizer;
 import parser.namevalidator;
+
+// Type Related Imports
+import parser.types.typecore;
+import parser.types.moduletype;
+import parser.types.structtype;
+import parser.types.classtype;
+import parser.types.variabletype;
+import parser.types.tasktype;
 
 /**
 *	The parsed module names.
@@ -343,11 +350,11 @@ public:
 						m_module,
 						modifier1, modifier2
 					);
-					if (structParser.strc) {
+					/*if (structParser.strc) {
 						if (!m_module.addStruct(structParser.strc)) {
 							reportError(m_fileName, cline, "Duplicate", "Struct name conflicting with an earlier local struct.");
 						}
-					}
+					}*/
 					break;
 				}
 				
@@ -362,11 +369,11 @@ public:
 						m_module.classes,
 						modifier1, modifier2
 					);
-					if (classParser.cls) {
+					/*if (classParser.cls) {
 						if (!m_module.addClass(classParser.cls)) {
 							reportError(m_fileName, cline, "Duplicate", "Class name conflicting with an earlier local class.");
 						}
-					}
+					}*/
 					break;
 				}
 				case "enum": {

@@ -16,9 +16,15 @@ import std.algorithm : strip, canFind, startsWith, endsWith;
 
 // Mew Imports
 import errors.report;
-import parser.parsingtypes;
 import parser.tokenizer;
 import parser.namevalidator;
+
+// Type Related Imports
+import parser.types.typecore;
+import parser.types.moduletype;
+import parser.types.structtype;
+import parser.types.variabletype;
+import parser.types.tasktype;
 
 /**
 *	Struct parser.
@@ -207,6 +213,10 @@ public:
 					m_struct = new Struct(name, attributes, inheritedVariables, modifier1, modifier2);
 					modifier1 = ModifierAccess1._public;
 					modifier2 = ModifierAccess2.none;
+					
+					if (!mod.addStruct(m_struct)) {
+						reportError(fileName, lineNumber, "Duplicate", "Struct name conflicting with an earlier local struct.");
+					}
 					break;
 				}
 				

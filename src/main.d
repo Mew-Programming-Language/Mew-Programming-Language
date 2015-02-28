@@ -14,7 +14,7 @@ version = DEBUG_V;
 
 // Std Imports
 import std.stdio;
-import std.array : join;
+import std.array : split, join;
 
 // Mew Imports
 import cargs;
@@ -29,7 +29,7 @@ int main(string[] _args) {
 		// MewProject is a test project for testing the language and its compilation.
 		
 		// Parsing the compiler arguments.
-		foreach (arg; parseArguments(_args ~ ["-proj MewProject -ptypes"])) {
+		foreach (arg; parseArguments(_args ~ ["-proj MewProject -out MewTest.exe -mlib"])) {// -ptypes"])) {
 			if (arg)
 				handleArguments(arg);
 		}
@@ -65,11 +65,24 @@ int main(string[] _args) {
 							}
 							else {
 								// Compile shit ...
+								import parser.mlibparser;
+								string mlibText = parseSource(mainModule);
 								
 								import cparser.handler;
-								string mlibText = "";
 								if (!parseMewLibary(mlibText)) {
 									//reportError("Compiler", size_t.max, "MLib Parsing", "Failed to parse the mlib!");
+								}
+								else {
+									if (createMewLibrary) {
+										import std.file;
+										alias fwrite = std.file.write;
+										version (Windows) {
+											fwrite(projectFolder ~ "\\out" ~ "\\" ~ split(outputFileName, ".")[0] ~ ".mlib", mlibText);
+										}
+										version (Posix) {
+											fwrite(projectFolder ~ "/out" ~ "/" ~ split(outputFileName, ".")[0] ~ ".mlib", mlibText);
+										}
+									}
 								}
 							}
 						}

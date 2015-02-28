@@ -30,9 +30,10 @@ private string[string] _modules;
 *	Returns: True if the file name is valid.
 */
 private bool validFileName(string file) {
-	return (endsWith(file, ".c") || endsWith(file, ".h") ||
+	/*return (endsWith(file, ".c") || endsWith(file, ".h") ||
 		endsWith(file, ".mew") || endsWith(file, ".mlib") ||
-		endsWith(file, ".lib") || endsWith(file, ".a"));
+		endsWith(file, ".lib") || endsWith(file, ".a"));*/
+	return endsWith(file, ".mew"); // load other file types elsewhere and just pass them to the c compiler
 }
 
 /**
