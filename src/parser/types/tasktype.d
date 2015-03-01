@@ -46,6 +46,10 @@ private:
 	*/
 	Variable[string] m_initVariables;
 	/**
+	*	The tasks.
+	*/
+	Task[string] m_tasks;
+	/**
 	*	The attributes.
 	*/
 	string[] m_attributes;
@@ -75,7 +79,7 @@ public:
 	*		attributes =			The attributes.
 	*		inheritedVariables =	The inheritedVariables from parents.
 	*/
-	this(string name, string returnType, Variable[] parameters, string[] attributes, Variable[string] inheritedVariables, ModifierAccess1 modifier1, ModifierAccess2 modifier2, ParentType parent = null) {
+	this(string name, string returnType, Variable[] parameters, string[] attributes, Variable[string] inheritedVariables, Task[string] inheritedTasks, ModifierAccess1 modifier1, ModifierAccess2 modifier2, ParentType parent = null) {
 		m_name = name;
 		m_returnType = returnType;
 		m_parameters = parameters;
@@ -84,6 +88,7 @@ public:
 			addVar(v, false);
 		foreach (param; parameters)
 			addVar(param, false);
+		m_tasks = inheritedTasks;
 		m_parent = parent;
 		m_modifier1 = modifier1;
 		m_modifier2 = modifier2;
@@ -114,6 +119,11 @@ public:
 		*	Gets the initialization variables.
 		*/
 		Variable[string] initVariables() { return m_initVariables; }
+		
+		/**
+		*	Gets the tasks.
+		*/
+		Task[string] tasks() { return m_tasks; }
 		
 		/**
 		*	Gets the attributes.

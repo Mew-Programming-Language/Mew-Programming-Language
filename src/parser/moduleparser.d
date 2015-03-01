@@ -330,6 +330,7 @@ public:
 					taskParser.parse(
 						m_fileName, m_line, m_source, attributes, aliases,
 						m_module.globalVariables,
+						m_module.globalTasks,
 						m_module,
 						modifier1, modifier2
 					);

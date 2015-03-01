@@ -45,7 +45,7 @@ bool parseMewLibary(string text) {
 			}
 			
 			case "var": {
-				string type = data[1];
+				string type = replace(data[1], "|", " ");
 				string name = data[2];
 				auto loc = cast(Location)to!size_t(data[3]);
 				if (!validLocation(loc, data[0])) {
@@ -99,6 +99,7 @@ bool parseMewLibary(string text) {
 				string ret = data[1];
 				string name = data[2];
 				string params = replace(data[3], "|", " ");
+				//params = replace(params, ";", " ");
 				auto loc = cast(Location)to!size_t(data[4]);
 				if (!validLocation(loc, data[0])) {
 					reportError("MLIB", lineNumber, "Location Error", "Invalid location for 'func'");

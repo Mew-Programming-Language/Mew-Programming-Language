@@ -37,27 +37,29 @@ string parseSource(Module mod) {
 	
 	src ~= "// Imports\r\n";
 	src ~= join(parseModule(mod), "\r\n");
+	src ~= "\r\n";
 	
 	src ~= "// Definitions\r\n";
 	foreach (k, v; definitions) {
 		src ~= format(defStr, v, k) ~ "\r\n";
 	}
+	src ~= "\r\n";
 	
 	src ~= "// Variables\r\n";
 	src ~= join(variables, "\r\n");
-	src ~= "\r\n";
+	src ~= "\r\n\r\n";
 	
 	src ~= "// Structs\r\n";
 	src ~= join(structs, "\r\n");
-	src ~= "\r\n";
+	src ~= "\r\n\r\n";
 	
 	src ~= "// Expressions\r\n";
 	src ~= join(_expressions, "\r\n");
-	src ~= "\r\n";
+	src ~= "\r\n\r\n";
 	
 	src ~= "// Functions\r\n";
 	src ~= join(functions, "\r\n");
-	src ~= "\r\n";
+	src ~= "\r\n\r\n";
 	
 	src ~= "// Sources\r\n";
 	src ~= join(sourceNames, "\r\n");
@@ -128,12 +130,13 @@ private void parseVariable(Variable var, size_t loc, string locName) {
 	
 	string value = var.defaultValue;
 	if (ctype == "Array_string") {
+		ctype = "char";
 		value = "\"" ~ value ~ "\"";
 		name = name ~ "[]";
 	}
 	else if (ctype == "char" || ctype == "unsigned char")
 		value = "'" ~ value ~ "'";
-		
+	ctype = replace(ctype, " ", "|");
 	if (value) {
 		size_t key;
 		bool foundKey = false;
@@ -150,10 +153,10 @@ private void parseVariable(Variable var, size_t loc, string locName) {
 			definitions[value] = key;
 		}
 					
-		variables ~= format(varStr, var.type, name, loc, locName, key);
+		variables ~= format(varStr, ctype, name, loc, locName, key);
 	}
 	else {
-		variables ~= format(varStr, var.type, name, loc, locName, "0");
+		variables ~= format(varStr, ctype, name, loc, locName, "0");
 	}
 }
 
@@ -175,7 +178,7 @@ private void parseTask(Task task, string name, size_t loc, string locName, strin
 			params = [parent ~ "|*this"];
 		foreach (param; task.parameters) {
 			// Implement expressions for default values ...
-			params ~= format(paramStr, param.type, param.name);
+			params ~= format(paramStr, replace(param.type, " ", "|"), param.name);
 		}
 		functions ~= format(funcStr, rtype, name, join(params, ","), loc, locName);
 	}
@@ -189,17 +192,19 @@ private void parseTask(Task task, string name, size_t loc, string locName, strin
 	}
 	
 	foreach (exp; task.expressions) {
+		import std.stdio : writefln;
+		writefln("%s() -- %s -- %s", task.name, exp.expressionType, exp.toString());
 		if (exp.expressionType != ExpressionType.LORCall) {
 			if (parent)
-				_expressions ~= format(expStr, id, 2, name, "this->" ~ exp.toString());
+				_expressions ~= format(expStr, id, 2, name, "this->" ~ replace(exp.toString(), ".", "->"));
 			else
-				_expressions ~= format(expStr, id, 2, name, exp.toString());
+				_expressions ~= format(expStr, id, 2, name, replace(exp.toString(), ".", "->"));
 		}
 		else {
 			if (parent)
-				_expressions ~= format(expStr, id, 2, name, (cast(LORCallExpression)exp).toString("this"));
+				_expressions ~= format(expStr, id, 2, name, replace((cast(LORCallExpression)exp).toString("this"), ".", "->"));
 			else
-				_expressions ~= format(expStr, id, 2, name, exp.toString());
+				_expressions ~= format(expStr, id, 2, name, replace(exp.toString(), ".", "->"));
 		}
 		id++;
 	}

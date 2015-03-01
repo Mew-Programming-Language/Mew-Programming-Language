@@ -61,7 +61,7 @@ public:
 	*		ialiases =			The inheritance aliases.
 	*/
 	void parse(string fileName, ref size_t lineNumber, ref string[] source, string[] attributes, string[string] ialiases,
-		Variable[string] inheritedVariables, Module mod, ModifierAccess1 modifier1, ModifierAccess2 modifier2, bool isConstructor = false, ParentType parent = null) {
+		Variable[string] inheritedVariables, Task[string] inheritedTasks, Module mod, ModifierAccess1 modifier1, ModifierAccess2 modifier2, bool isConstructor = false, ParentType parent = null) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
 		bool inMultiLineComment = false;
@@ -168,7 +168,7 @@ public:
 						return; // only allow void parameters atm. do args later ...
 					}
 					
-					m_task = new Task(name, returnType, params, attributes, inheritedVariables, modifier1, modifier2, parent);
+					m_task = new Task(name, returnType, params, attributes, inheritedVariables, inheritedTasks, modifier1, modifier2, parent);
 					break;
 				}
 				
@@ -198,9 +198,9 @@ public:
 					else {
 						// LEFT_HAND OP RIGHT_HAND ex. a += b
 						if (expression[3]) // isCall
-							handleLORCall(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], expression[4], mod);
+							handleLORCallExpression(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], expression[4], mod);
 						else
-							handleLORExpression(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], mod);
+							handleLORVariableExpression(m_task, fileName, lineNumber, [expression[0], expression[1], expression[2]], mod);
 					}
 					break;
 				}

@@ -226,7 +226,8 @@ public:
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
 						fileName, lineNumber, source, attributes, aliases,
-						cast(Variable[string])m_struct.childVariables, 
+						cast(Variable[string])m_struct.childVariables,
+						m_struct.tasks,
 						mod,
 						modifier1, modifier2,
 						isConstructor,

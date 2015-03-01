@@ -80,7 +80,7 @@ public:
 		// do value shit later ...
 		
 		if (parent) {
-			auto sup = new Variable(parent.name, "super", null, null, ModifierAccess1._private, ModifierAccess2.none);
+			auto sup = new Variable(parent.name ~ "*", "super", null, null, ModifierAccess1._private, ModifierAccess2.none);
 			addVar(sup);
 			
 			foreach (k, v; parent.initVariables) {

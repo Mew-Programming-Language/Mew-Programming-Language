@@ -70,7 +70,7 @@ int main(string[] _args) {
 								
 								import cparser.handler;
 								if (!parseMewLibary(mlibText)) {
-									//reportError("Compiler", size_t.max, "MLib Parsing", "Failed to parse the mlib!");
+									reportError("Compiler", size_t.max, "MLib Parsing", "Failed to parse the mlib!");
 								}
 								else {
 									if (createMewLibrary) {

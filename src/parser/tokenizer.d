@@ -24,7 +24,7 @@ enum ADataTypes = [
 	"byte" : "char",
 	"short" : "short",
 	"int" : "int",
-	"long" : "lonng",
+	"long" : "long",
 	"ubyte" : "unsigned char",
 	"ushort" : "unsigned short",
 	"uint" : "unsigned int",
@@ -239,8 +239,10 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		}
 		
 		if (canFind(structs, types[0]) ||
-			canFind(classes, types[0]) ||
-			canFind(structs, types[0])) {
+			canFind(classes, types[0])) {
+			dataType = types[0] ~ "*";
+		}
+		else if (canFind(enums, types[0])) {
 			dataType = types[0];
 		}
 		else if (!setType(types[0], dataType)) {
@@ -250,8 +252,10 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		
 		string dataType2;
 		if (canFind(structs, types[1]) ||
-			canFind(classes, types[1]) ||
-			canFind(enums, types[1])) {
+			canFind(classes, types[1])) {
+			dataType2 = types[1] ~ "*";
+		}
+		else if (canFind(enums, types[1])) {
 			dataType2 = types[1];
 		}
 		else if (!setType(types[1], dataType2)) {
@@ -261,8 +265,10 @@ auto tokenizeVariable(string fileName, size_t lineNumber, string input, string[]
 		dataType = setAdt ~ "_" ~ dataType ~ "_" ~ dataType2;
 	}
 	else if (canFind(structs, type) ||
-		canFind(classes, type) ||
-		canFind(enums, type)) {
+		canFind(classes, type)) {
+		dataType = type ~ "*";
+	}
+	else if (canFind(enums, type)) {
 		dataType = type;
 	}
 	else if (!setType(type, dataType)) {

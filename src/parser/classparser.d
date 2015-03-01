@@ -243,7 +243,8 @@ public:
 					scope auto taskParser = new TaskParser();
 					taskParser.parse(
 						fileName, lineNumber, source, attributes, aliases,
-						m_class.variables, mod,
+						m_class.variables, m_class.tasks,
+						mod,
 						modifier1, modifier2,
 						isConstructor,
 						m_class
