@@ -19,3 +19,5 @@ Mew is a programming language written in D and C compiling to native through C u
 * Error safety (Exception based system.) + handle all errors as much as possible.
 * Exceptions should be usable by standard C code.
 * Fully open-source -- Everything will be available to the public.
+
+For more information or how to contribute please view the wiki.
