@@ -115,6 +115,8 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 														}
 													}
 												}
+												nparams = [parentName] ~ nparams;
+												
 												// else no parameters
 												if (!child.returnType || child.returnType == "void") {
 													reportError(fileName, lineNumber, "Invalid Call Type", format("'%s.%s' is of type void and has no return value.", parentName, childName));
@@ -231,6 +233,8 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 														}
 													}
 												}
+												nparams = [parentName] ~ nparams;
+												
 												// else no parameters
 												if (!child.returnType || child.returnType == "void") {
 													reportError(fileName, lineNumber, "Invalid Call Type", format("'%s.%s' is of type void and has no return value.", parentName, childName));
@@ -311,6 +315,45 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 				auto member = collection[memberName];
 				if (member) { // Safety check ...
 					static if (eva == ExpEvaluation.addVariableExpression) {
+						// Evaluating local parent members
+						if (task.parent) {
+							auto parent = task.parent;
+							if (parent.name in mod.structs) {
+								// The parent is a struct
+								auto parentObject = mod.structs[parent.name];
+								
+								if (leftVar.name in parentObject.childVariables &&
+									leftVar.name !in task.initVariables) {
+									// The left variable is parent local and not task local
+									// Changes it to call the instance of the parent
+									expression[0] = replace(expression[0], leftVar.name, "this->" ~ leftVar.name);
+								}
+								
+								if (member.name in parentObject.childVariables &&
+									member.name !in task.initVariables) {
+									// The right member is parent local and not task local
+									expression[2] = replace(expression[2], member.name, "this->" ~ member.name);
+								}
+							}
+							else if (parent.name in mod.classes) {
+								// The parent is a struct
+								auto parentObject = mod.classes[parent.name];
+								
+								if (leftVar.name in parentObject.initVariables &&
+									leftVar.name !in task.initVariables) {
+									// The left variable is parent local and not task local
+									// Changes it to call the instance of the parent
+									expression[0] = replace(expression[0], leftVar.name, "this->" ~ leftVar.name);
+								}
+								
+								if (member.name in parentObject.initVariables &&
+									member.name !in task.initVariables) {
+									// The right member is parent local and not task local
+									expression[2] = replace(expression[2], member.name, "this->" ~ member.name);
+								}
+							}
+						}
+		
 						task.addExp(new LORExpression(expression));
 						return member;
 					}
@@ -361,16 +404,62 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 								reportError(fileName, lineNumber, "Invalid Call Type", format("'%s' is of type void and has no return value.", memberName));
 								return null;
 							}
-												
+							
+							// Evaluating local parent members
+							if (task.parent) {
+								auto parent = task.parent;
+								if (parent.name in mod.structs) {
+									// The parent is a struct
+									auto parentObject = mod.structs[parent.name];
+								
+									if (leftVar.name in parentObject.childVariables &&
+										leftVar.name !in task.initVariables) {
+										// The left variable is parent local and not task local
+										// Changes it to call the instance of the parent
+										expression[0] = replace(expression[0], leftVar.name, "this->" ~ leftVar.name);
+									}
+								
+									if (member.name in parentObject.childVariables &&
+										member.name !in task.initVariables) {
+										// The right member is parent local and not task local
+										expression[2] = replace(expression[2], member.name, "this->" ~ member.name);
+									}
+								}
+								else if (parent.name in mod.classes) {
+									// The parent is a struct
+									auto parentObject = mod.classes[parent.name];
+								
+									if (leftVar.name in parentObject.initVariables &&
+										leftVar.name !in task.initVariables) {
+										// The left variable is parent local and not task local
+										// Changes it to call the instance of the parent
+										expression[0] = replace(expression[0], leftVar.name, "this->" ~ leftVar.name);
+									}
+								
+									if (member.name in parentObject.initVariables &&
+										member.name !in task.initVariables) {
+										// The right member is parent local and not task local
+										expression[2] = replace(expression[2], member.name, "this->" ~ member.name);
+									}
+								}
+							}
+						
+							string callExp = expression[2];
+							if (member.parent) {
+								// Gets the parent name and corrects the task name
+								callExp = replace(callExp, memberName, member.parent.name ~ "_" ~ memberName);
+							}
+							
 							if (leftVar.type != member.returnType) {
 								// The variable doesn't have the same type as the task's return type
 								// Proceed to cast
-								
-								expression[2] = format("(%s)%s", leftVar.type, expression[2]);
+								expression[2] = format("(%s)%s", leftVar.type, callExp);
 								task.addExp(new LORCallExpression(expression, nparams));
 							}
-							else
+							else {
+								expression[2] = callExp;
 								task.addExp(new LORCallExpression(expression, nparams));
+							}
 						}
 						return leftVar;
 					}
@@ -386,11 +475,6 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 				// The variable / task was not defined
 				// TODO: Implement value references ...
 				reportError(fileName, lineNumber, "Call Error", format("'%s' was not defined.", memberName));
-				static if (eva == ExpEvaluation.addCallExpression) {
-					import std.stdio : writeln;
-					foreach (t; task.tasks)
-						writeln(t.name);
-				}
 			}
 		}
 	}

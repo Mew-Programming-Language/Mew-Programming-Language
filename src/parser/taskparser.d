@@ -16,7 +16,7 @@ import std.algorithm : strip, canFind;
 
 // Mew Imports
 import errors.report;
-import parser.tokenizer;
+import parser.tokenizers.tokenizercore;
 import parser.namevalidator;
 import parser.expressionparser;
 
@@ -64,6 +64,7 @@ public:
 		Variable[string] inheritedVariables, Task[string] inheritedTasks, Module mod, ModifierAccess1 modifier1, ModifierAccess2 modifier2, bool isConstructor = false, ParentType parent = null) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
+		bool foundReturnStatement = false;
 		bool inMultiLineComment = false;
 		bool resetAttributes = false;
 		string[string] aliases;
@@ -85,6 +86,7 @@ public:
 			// Checks if it's an ending statement
 			if (line == ")") {
 				foundEndStatement = true;
+				// RAII clean up .. (Also include this for all child scopes
 				break;
 			}
 			
@@ -172,6 +174,33 @@ public:
 					break;
 				}
 				
+				case "return": {
+					scope auto tokenized = tokenizeReturn(fileName, lineNumber, line);
+					string varName = tokenized[0];
+					if (!varName)
+						break;
+					if (varName !in task.variables) {
+						reportError(fileName, lineNumber, "Invalid Return", format("'%s' is not an accessible variable.", varName));
+						return;
+					}
+					
+					auto var = task.variables[varName];
+					if (!var) {
+						reportError(fileName, lineNumber, "Invalid Return", format("'%s' does not have a compiler instance.", varName));
+						return;
+					}
+					
+					if (var.type != m_task.returnType) {
+						string rType = (m_task.returnType ? m_task.returnType : "void");
+						reportError(fileName, lineNumber, "Invalid Return", format("'%s' is not type of '%s'.", varName, rType));
+						return;
+					}
+					
+					foundReturnStatement = true;
+					m_task.addExp(new ReturnExpression(varName));
+					break;
+				}
+				
 				default: {
 					size_t cline = lineNumber;
 					
@@ -211,6 +240,12 @@ public:
 		if (!foundEndStatement) {
 			if (m_task)
 				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing ')' for task '%s'", m_task.name));
+			else
+				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
+		}
+		else if (!foundReturnStatement && m_task.returnType && m_task.returnType != "void") {
+			if (m_task)
+				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing return for task '%s'", m_task.name));
 			else
 				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
 		}

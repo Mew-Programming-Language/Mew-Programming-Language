@@ -24,7 +24,8 @@ import parser.types.variabletype;
 enum ExpressionType {
 	LOR,
 	LORCall,
-	LO
+	LO,
+	RET
 }
 
 /**
@@ -86,7 +87,7 @@ public:
 	*	Gets a string equivalent to the expression.
 	*/
 	override string toString() {
-		return format("%s %s %s", m_expression[0], m_expression[1], m_expression[2]);
+		return format("%s %s %s;", m_expression[0], m_expression[1], m_expression[2]);
 	}
 }
 
@@ -134,9 +135,9 @@ public:
 	override string toString() {
 		import std.array : join;
 		if (m_params)
-			return format("%s %s %s(%s)", m_expression[0], m_expression[1], m_expression[2], join(m_params, ","));
+			return format("%s %s %s(%s);", m_expression[0], m_expression[1], m_expression[2], join(m_params, ","));
 		else
-			return format("%s %s %s()", m_expression[0], m_expression[1], m_expression[2]);
+			return format("%s %s %s();", m_expression[0], m_expression[1], m_expression[2]);
 	}
 	
 	/**
@@ -145,9 +146,9 @@ public:
 	string toString(string customParams) {
 		import std.array : join;
 		if (m_params)
-			return format("%s %s %s(%s,%s)", m_expression[0], m_expression[1], m_expression[2], customParams, join(m_params, ","));
+			return format("%s %s %s(%s,%s);", m_expression[0], m_expression[1], m_expression[2], customParams, join(m_params, ","));
 		else
-			return format("%s %s %s(%s)", m_expression[0], m_expression[1], m_expression[2], customParams);
+			return format("%s %s %s(%s);", m_expression[0], m_expression[1], m_expression[2], customParams);
 	}
 }
 
@@ -180,6 +181,39 @@ public:
 	*	Gets a string equivalent to the expression.
 	*/
 	override string toString() {
-		return format("%s%s", m_expression[0], m_expression[1]);
+		return format("%s%s;", m_expression[0], m_expression[1]);
+	}
+}
+
+/**
+*	Return expression
+*/
+class ReturnExpression : TaskExpression {
+private:
+	/**
+	*	The variable to return.
+	*/
+	string m_return;
+public:
+	/**
+	*	Creates a new instance of ReturnExpression.
+	*	Params:
+	*		ret =	The return variable.
+	*/
+	this(string ret) {
+		m_return = ret;
+	
+		super(ExpressionType.RET);
+	}
+	
+	@property {
+		string ret() { return m_return; }
+	}
+	
+	/**
+	*	Gets a string equivalent to the expression.
+	*/
+	override string toString() {
+		return format("return %s;", m_return);
 	}
 }

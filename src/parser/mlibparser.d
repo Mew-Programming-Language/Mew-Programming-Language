@@ -21,16 +21,47 @@ import parser.types.variabletype;
 import parser.types.tasktype;
 import parser.types.expressions;
 
+/**
+*	The source names.
+*/
 private string[] sourceNames;
 
+/**
+*	The last definition id.
+*/
 private size_t lastDefId = 0;
+
+/**
+*	The definitions.
+*/
 private size_t[string] definitions;
 
+/**
+*	The variables.
+*/
 private string[] variables;
+
+/**
+*	The structs.
+*/
 private string[] structs;
+
+/**
+*	The expressions.
+*/
 private string[] _expressions;
+
+/**
+*	The functions.
+*/
 private string[] functions;
 
+/**
+*	Parses a module to .mlib source.
+*	Params:
+*		mod =	The module to parse.
+*	Returns: The parsed .mlib source.
+*/
 string parseSource(Module mod) {
 	string src;
 	string defStr = "def %s %s";
@@ -68,6 +99,12 @@ string parseSource(Module mod) {
 	return src;
 }
 
+/**
+*	Parses a module.
+*	Params:
+*		mod =	The module to parse.
+*	Returns: An array of strings containing the source.
+*/
 private string[] parseModule(Module mod) {
 	string importStr = "import %s %s %s %s";
 	string strcStr = "struct %s %s %s";
@@ -123,12 +160,20 @@ private string[] parseModule(Module mod) {
 	return src;
 } 
 
+/**
+*	Parses a variable.
+*	Params:
+*		var =		The variable to parse.
+*		loc =		The location of the variable.
+*		locName =	The name of the location.
+*/
 private void parseVariable(Variable var, size_t loc, string locName) {
 	string varStr = "var %s %s %s %s %s";
 	string ctype = var.type;
 	string name = var.name;
 	
 	string value = var.defaultValue;
+	// TEMP ...
 	if (ctype == "Array_string") {
 		ctype = "char";
 		value = "\"" ~ value ~ "\"";
@@ -160,6 +205,15 @@ private void parseVariable(Variable var, size_t loc, string locName) {
 	}
 }
 
+/**
+*	Parses a task.
+*	Params:
+*		task =		The task to parse.
+*		name =		The name of the task.
+*		loc =		The location of the task.
+*		locName =	The name of the location.
+*		parent =	The parent of the task.
+*/
 private void parseTask(Task task, string name, size_t loc, string locName, string parent) {
 	string funcStr = "func %s %s %s %s %s";
 	string paramStr = "%s|%s";
@@ -192,20 +246,21 @@ private void parseTask(Task task, string name, size_t loc, string locName, strin
 	}
 	
 	foreach (exp; task.expressions) {
-		import std.stdio : writefln;
-		writefln("%s() -- %s -- %s", task.name, exp.expressionType, exp.toString());
-		if (exp.expressionType != ExpressionType.LORCall) {
+		if (exp.expressionType == ExpressionType.LOR ||
+			exp.expressionType == ExpressionType.LO) {
 			if (parent)
 				_expressions ~= format(expStr, id, 2, name, "this->" ~ replace(exp.toString(), ".", "->"));
 			else
 				_expressions ~= format(expStr, id, 2, name, replace(exp.toString(), ".", "->"));
 		}
-		else {
+		else if (exp.expressionType == ExpressionType.LORCall) {
 			if (parent)
 				_expressions ~= format(expStr, id, 2, name, replace((cast(LORCallExpression)exp).toString("this"), ".", "->"));
 			else
 				_expressions ~= format(expStr, id, 2, name, replace(exp.toString(), ".", "->"));
 		}
+		else
+			_expressions ~= format(expStr, id, 2, name, exp.toString());
 		id++;
 	}
 }

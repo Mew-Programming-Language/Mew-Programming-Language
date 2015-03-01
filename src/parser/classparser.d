@@ -16,7 +16,7 @@ import std.algorithm : strip, canFind, startsWith, endsWith;
 
 // Mew Imports
 import errors.report;
-import parser.tokenizer;
+import parser.tokenizers.tokenizercore;
 import parser.namevalidator;
 
 // Type Related Imports

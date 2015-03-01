@@ -18,7 +18,7 @@ import std.algorithm : strip, canFind, endsWith;
 import errors.report;
 import modules.naming;
 import modules.sources;
-import parser.tokenizer;
+import parser.tokenizers.tokenizercore;
 import parser.namevalidator;
 
 // Type Related Imports
