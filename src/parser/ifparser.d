@@ -1,5 +1,5 @@
 /*
-	This module is for parsing mew tasks.
+	This module is for parsing if/elif statements.
 	
 	Authors:
 		Jacob Jensen / Bauss
@@ -7,7 +7,7 @@
 		Apache License 2.0
 		https://github.com/Mew-Programming-Language/Mew-Programming-Language/blob/master/LICENSE
 */
-module parser.taskparser;
+module parser.ifparser;
 
 // Std Imports
 import std.string : format;
@@ -30,20 +30,29 @@ import parser.types.tasktype;
 import parser.types.expressions;
 
 /**
-*	Task parser.
+*	If parser.
 */
-class TaskParser {
+class IfParser {
 private:
 	/**
 	*	The task.
 	*/
 	Task m_task;
+	/**
+	*	The expression.
+	*/
+	string[] m_expression;
+	/**
+	*	Boolean determining whether it's parsing elif or not.
+	*/
+	bool m_isElif;
 public:
 	/**
-	*	Creates a new instance of TaskParser.
+	*	Creates a new instance of IfParser.
 	*/
-	this() {
-		// Reserved for future use ...
+	this(Task task, bool isElif) {
+		m_task = task;
+		m_isElif = isElif;
 	}
 	
 	@property {
@@ -51,10 +60,20 @@ public:
 		*	Gets the task.
 		*/
 		Task task() { return m_task; }
+		
+		/**
+		*	Gets the expression.
+		*/
+		string[] expression() { return m_expression; }
+		
+		/**
+		*	Gets a boolean determining whether it's parsing elif or not.
+		*/
+		bool isElif() { return m_isElif; }
 	}
 	
 	/**
-	*	Parses a task.
+	*	Parses an if/elif statement.
 	*	Params:
 	*		fileName =			The file name.
 	*		lineNumber =		(ref) The current line.
@@ -66,9 +85,11 @@ public:
 		Variable[string] inheritedVariables, Task[string] inheritedTasks, Module mod, ModifierAccess1 modifier1, ModifierAccess2 modifier2, bool isConstructor = false, ParentType parent = null) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
-		bool foundReturnStatement = false;
+		bool foundReturnStatement = false; // Ignored and only used to parse "return" properly.
 		bool inMultiLineComment = false;
 		bool resetAttributes = false;
+		bool parsedIf = false;
+		bool doneParsing = false;
 		string[string] aliases;
 		// Sets the inherited aliases.
 		foreach (k, v; ialiases)
@@ -78,15 +99,25 @@ public:
 		while (lineNumber < source.length) {
 			string line = strip(source[lineNumber], '\0');
 			
-			string parserName = "task";
-			mixin ParseHandler!(ParserType._task);
+			string nextLine;
+			if (lineNumber < (source.length - 1)) {
+				nextLine = strip(source[lineNumber + 1], '\0');
+				nextLine = strip(nextLine, '\t');
+				nextLine = strip(nextLine, ' ');
+				nextLine = strip(nextLine, '\r');
+			}
+			string parserName = "if";
+			mixin ParseHandler!(ParserType._if);
 			auto res = handleParser(lineNumber); // uses lineNumber ...
+			import std.stdio;
 			if (res == CONTINUE)
 				continue;
-			else if (res == BREAK)
+			else if (res == BREAK) {
 				break;
-			else if (res == RETURN)
+			}
+			else if (res == RETURN) {
 				return;
+			}
 			// else if (res == NOTHING)
 			
 			// Splits the current line by space ... " "
@@ -99,40 +130,29 @@ public:
 					break;
 				}
 				
-				case "task": {
-					if (m_task) {
-						reportError(fileName, lineNumber, "Invalid Task Syntax", "Nested tasks are disallowed.");
+				case "if":
+				case "elif": {
+					/*if (m_isElif && lineSplit[0] == "elif") {
+						reportError(fileName, lineNumber, "Invalid If Syntax", "Expected an if statement before elif.");
+						return;
+					}*/
+					if (parsedIf) {
+						mixin IfStatement;
+						handleIfStatement();
 						return;
 					}
-					scope auto tokenized = tokenizeTask(fileName, lineNumber, line, mod.structs.keys, mod.classes.keys, null);
-					
-					auto name = tokenized[0];
-					if (!name)
-						break;
-					if (!validName(name, isConstructor)) {
-						reportError(fileName, lineNumber, "Invalid Name", "Invalid task name. Make sure it's A-Z and doesn't conflic with keywords.");
-						return;
-					}
-					auto returnType = tokenized[1];
-					
-					auto parameters = tokenized[2];	
-
-					Variable[] params;
-					foreach (param; parameters) {
-						import parser.variableparser;
-						scope auto variableParser = new VariableParser!Variable;
-						variableParser.parse2(param, fileName, lineNumber, line, null, ModifierAccess1._private, ModifierAccess2.none);
-						if (variableParser.var) {
-							params ~= variableParser.var;
+					else {
+						scope auto tokenized = tokenizeIf(fileName, lineNumber, line);
+						if (!tokenized[0])
+							return; // Error statement ...
+						string[] expression = [tokenized[0], tokenized[1], tokenized[2]];
+						auto rest = handleLORCompareExpression(m_task, fileName, lineNumber, expression, mod, m_isElif);
+						if (rest) {
+							parsedIf = true;
 						}
+						else
+							return; // Error statement ...
 					}
-					
-					if (mod.name == "main" && name == "main" && params) {
-						reportError(fileName, lineNumber, "Invalid Params", "Main task cannot take parameters.");
-						return; // only allow void parameters atm. do args later ...
-					}
-					
-					m_task = new Task(name, returnType, params, attributes, inheritedVariables, inheritedTasks, modifier1, modifier2, parent);
 					break;
 				}
 				
@@ -140,14 +160,6 @@ public:
 					mixin ReturnStatement;
 					if (!handleReturnStatement())
 						return;
-					break;
-				}
-				
-				case "if": {
-					mixin IfStatement;
-					handleIfStatement();
-					//if (!handleIfStatement())
-					//	return;
 					break;
 				}
 				
@@ -163,15 +175,9 @@ public:
 		// There was no ending statement found and it reached the end of the file ...
 		if (!foundEndStatement) {
 			if (m_task)
-				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing ')' for task '%s'", m_task.name));
+				reportError(fileName, lineNumber, "Invalid If Syntax", format("Missing ')' for if statement in '%s'", m_task.name));
 			else
-				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
-		}
-		else if (!foundReturnStatement && m_task.returnType && m_task.returnType != "void") {
-			if (m_task)
-				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing return for task '%s'", m_task.name));
-			else
-				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
+				reportError(fileName, lineNumber, "Invalid If Syntax", "If statement parsed incorrectly.");
 		}
 	}
 }

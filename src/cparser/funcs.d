@@ -11,7 +11,7 @@ module cparser.funcs;
 
 // Std Imports
 import std.string : format;
-import std.algorithm : filter;
+import std.algorithm : endsWith, filter;
 import std.array;
 
 // Mew Imports
@@ -100,11 +100,21 @@ public:
 	*/
 	string toSource() {
 		string[] expressions;
-		foreach (exp; m_expressions)
-			expressions ~= exp.toString();
+		string tabs = "\t";
+		
+		foreach (exp; m_expressions) {
+			string expStr = exp.toString();
+			if (endsWith(expStr, "}")) {
+				tabs.length -= 1;
+			}
+			expressions ~= tabs ~ expStr;
+			if (endsWith(expStr, "{")) {
+				tabs ~= "\t";
+			}
+		}
 		
 		return format("%s %s(%s) {
-	%s
+%s
 }", m_ret, m_name, m_params, join(expressions, "\r\n"));
 	}
 	

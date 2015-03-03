@@ -25,7 +25,9 @@ enum ExpressionType {
 	LOR,
 	LORCall,
 	LO,
-	RET
+	RET,
+	IF,
+	DIR
 }
 
 /**
@@ -215,5 +217,74 @@ public:
 	*/
 	override string toString() {
 		return format("return %s;", m_return);
+	}
+}
+
+/**
+*	If/Elif expression
+*/
+class IfExpression : TaskExpression {
+private:
+	/**
+	*	The if/elif expression.
+	*/
+	string[] m_expression;
+public:
+	/**
+	*	Creates a new instance of IfExpression.
+	*	Params:
+	*		exp =	The expression.
+	*/
+	this(string[] exp) {
+		m_expression = exp;
+	
+		super(ExpressionType.IF);
+	}
+	
+	@property {
+		/**
+		*	Gets the expression.
+		*/
+		string[] exp() { return m_expression; }
+	}
+	
+	/**
+	*	Gets a string equivalent to the expression.
+	*/
+	override string toString() {
+		return format("%s (%s %s %s) {", m_expression[0], m_expression[1], m_expression[2], m_expression[3]);
+	}
+}
+
+/**
+*	Direct expression.
+*/
+class DirectExpression  : TaskExpression {
+private:
+	/**
+	*	The expression.
+	*/
+	string m_expression;
+public:
+	/**
+	*	Creates a new instance of DirectExpression.
+	*	Params:
+	*		exp =	The expression.
+	*/
+	this(string exp) {
+		m_expression = exp;
+	
+		super(ExpressionType.DIR);
+	}
+	
+	@property {
+		string exp() { return m_expression; }
+	}
+	
+	/**
+	*	Gets a string equivalent to the expression.
+	*/
+	override string toString() {
+		return m_expression;
 	}
 }

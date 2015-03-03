@@ -26,13 +26,17 @@ import parser.types.variabletype;
 import parser.types.tasktype;
 import parser.types.expressions;
 
+/**
+*	Expression evaluation types.
+*/
 private enum ExpEvaluation {
 	validateLeftHand,
 	addVariableExpression,
-	addCallExpression
+	addCallExpression,
+	addIfExpression
 }
 
-private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod, string exp, Variable leftVar = null, string[] params = null) {
+private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod, string exp, bool isElif = false, Variable leftVar = null, string[] params = null) {
 	string[] names = split(exp, ".");
 	if (!names)
 		names = [exp];
@@ -144,6 +148,13 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 												}
 											}
 											return leftVar;
+										}
+										else static if (eva == ExpEvaluation.addIfExpression) {
+											if (isElif)
+												task.addExp(new IfExpression(["else if"] ~ expression));
+											else
+												task.addExp(new IfExpression(["if"] ~ expression));
+											return child;
 										}
 										else
 											return child;
@@ -261,6 +272,13 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 												}
 											}
 											return leftVar;
+										}
+										else static if (eva == ExpEvaluation.addIfExpression) {
+											if (isElif)
+												task.addExp(new IfExpression(["else if"] ~ expression));
+											else
+												task.addExp(new IfExpression(["if"] ~ expression));
+											return child;
 										}
 										else
 											return child;
@@ -463,6 +481,52 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 						}
 						return leftVar;
 					}
+					else static if (eva == ExpEvaluation.addIfExpression) {
+						// Evaluating local parent members
+						if (task.parent) {
+							auto parent = task.parent;
+							if (parent.name in mod.structs) {
+								// The parent is a struct
+								auto parentObject = mod.structs[parent.name];
+								
+								if (leftVar.name in parentObject.childVariables &&
+									leftVar.name !in task.initVariables) {
+									// The left variable is parent local and not task local
+									// Changes it to call the instance of the parent
+									expression[0] = replace(expression[0], leftVar.name, "this->" ~ leftVar.name);
+								}
+								
+								if (member.name in parentObject.childVariables &&
+									member.name !in task.initVariables) {
+									// The right member is parent local and not task local
+									expression[2] = replace(expression[2], member.name, "this->" ~ member.name);
+								}
+							}
+							else if (parent.name in mod.classes) {
+								// The parent is a struct
+								auto parentObject = mod.classes[parent.name];
+								
+								if (leftVar.name in parentObject.initVariables &&
+									leftVar.name !in task.initVariables) {
+									// The left variable is parent local and not task local
+									// Changes it to call the instance of the parent
+									expression[0] = replace(expression[0], leftVar.name, "this->" ~ leftVar.name);
+								}
+								
+								if (member.name in parentObject.initVariables &&
+									member.name !in task.initVariables) {
+									// The right member is parent local and not task local
+									expression[2] = replace(expression[2], member.name, "this->" ~ member.name);
+								}
+							}
+						}
+						
+						if (isElif)
+							task.addExp(new IfExpression(["else if"] ~ expression));
+						else
+							task.addExp(new IfExpression(["if"] ~ expression));
+						return member;
+					}
 					else
 						return member;
 				}
@@ -482,7 +546,7 @@ private Variable handleExpression(ExpEvaluation eva)(Task task, string fileName,
 }
 
 /**
-*	Handles a LOR expression and validates expression names.
+*	Handles a LOR variable expression and validates expression names.
 *	Params:
 *		task =			The task with the expression.
 *		fileName =		The name of the file.
@@ -494,11 +558,11 @@ auto handleLORVariableExpression(Task task, string fileName, ref size_t lineNumb
 	Variable leftVar = handleExpression!(ExpEvaluation.validateLeftHand)(task, fileName, lineNumber, expression, mod, expression[0]);
 	if (!leftVar)
 		return leftVar; // Returns null ...
-	return handleExpression!(ExpEvaluation.addVariableExpression)(task, fileName, lineNumber, expression, mod, expression[2], leftVar);
+	return handleExpression!(ExpEvaluation.addVariableExpression)(task, fileName, lineNumber, expression, mod, expression[2], false, leftVar);
 }
 
 /**
-*	Handles a LOR expression and validates expression names.
+*	Handles a LOR call expression and validates expression names.
 *	Params:
 *		task =			The task with the expression.
 *		fileName =		The name of the file.
@@ -508,10 +572,27 @@ auto handleLORVariableExpression(Task task, string fileName, ref size_t lineNumb
 *		mod =			The module.
 */
 void handleLORCallExpression(Task task, string fileName, ref size_t lineNumber, string[] expression, string[] params, Module mod) {
-	Variable leftVar = handleExpression!(ExpEvaluation.validateLeftHand)(task, fileName, lineNumber, expression, mod, expression[0]);
+	auto leftVar = handleExpression!(ExpEvaluation.validateLeftHand)(task, fileName, lineNumber, expression, mod, expression[0]);
 	if (!leftVar) {
 		reportError(fileName, lineNumber, "Call Error", "Invalid left hand.");
 		return;
 	}
-	handleExpression!(ExpEvaluation.addCallExpression)(task, fileName, lineNumber, expression, mod, expression[2], leftVar, params);
+	handleExpression!(ExpEvaluation.addCallExpression)(task, fileName, lineNumber, expression, mod, expression[2], false, leftVar, params);
+}
+
+/**
+*	Handles a LOR compare expression and validates expression names.
+*	Params:
+*		task =			The task with the expression.
+*		fileName =		The name of the file.
+*		lineNumber =	(ref) The current line.
+*		expression =	The expression to handle.
+*		mod =			The module.
+*/
+auto handleLORCompareExpression(Task task, string fileName, ref size_t lineNumber, string[] expression, Module mod, bool isElif) {
+	Variable leftVar = handleExpression!(ExpEvaluation.validateLeftHand)(task, fileName, lineNumber, expression, mod, expression[0]);
+	if (!leftVar) {
+		return leftVar; // Returns null ...
+	}
+	return handleExpression!(ExpEvaluation.addIfExpression)(task, fileName, lineNumber, expression, mod, expression[2], isElif, leftVar);
 }

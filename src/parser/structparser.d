@@ -18,6 +18,7 @@ import std.algorithm : strip, canFind, startsWith, endsWith;
 import errors.report;
 import parser.tokenizers.tokenizercore;
 import parser.namevalidator;
+import parser.parserhandlers;
 
 // Type Related Imports
 import parser.types.typecore;
@@ -76,116 +77,19 @@ public:
 		// Loops through the source by its lines
 		while (lineNumber < source.length) {
 			string line = strip(source[lineNumber], '\0');
-			line = strip(line, '\t');
-			line = strip(line, ' ');
-			line = strip(line, '\r');
-			if (!line || !line.length) {
-				lineNumber++;
-				continue;
-			}
-			
-			// Checks if it's an ending statement
-			if (line == ")") {
-				foundEndStatement = true;
-				break;
-			}
-			
-			// Checks for single comment
-			if (line[0] == '#') {
-				lineNumber++;
-				continue;
-			}
-			
-			// Checks for multi line comment
-			if (inMultiLineComment) {
-				if (line == "+/")
-					inMultiLineComment = false;
-				lineNumber++;
-				continue;
-			}
-			else if (line == "/+") {
-				inMultiLineComment = true;
-				lineNumber++;
-				continue;
-			}
-			
-			// Attribute handling
-			if (resetAttributes)
-				attributes = null;
-				
-			if (line[0] == '@') {
-				attributes ~= line;
-				lineNumber++;
-				resetAttributes = false;
-				continue;
-			}
-			else
-				resetAttributes = true;
-			
-			// Replaces alias expressions
-			foreach (k, v; aliases) {
-				line = replace(line, k, v); // store information about alias + line later to report errors that are based on aliases
-			}
-			
-			bool wasModifier = false;
-			switch (line) {
-				// ModifierAccess1
-				case "public:":
-					modifier1 = ModifierAccess1._public;
-					wasModifier = true;
-					break;
-				case "protected:":
-					modifier1 = ModifierAccess1._protected;
-					wasModifier = true;
-					break;
-				case "private:":
-					modifier1 = ModifierAccess1._private;
-					wasModifier = true;
-					break;
-				case "personal:":
-					modifier1 = ModifierAccess1._personal;
-					wasModifier = true;
-					break;
-					
-				// ModifierAccess2
-				case "none:":
-					modifier2 = ModifierAccess2.none;
-					wasModifier = true;
-					break;
-				case "const:":
-					modifier2 = ModifierAccess2._const;
-					wasModifier = true;
-					break;
-				case "immutable:":
-					modifier2 = ModifierAccess2._immutable;
-					wasModifier = true;
-					break;
-				case "scope:":
-					modifier2 = ModifierAccess2._scope;
-					wasModifier = true;
-					break;
-				
-				// Clear
-				case "clear:":
-					modifier1 = ModifierAccess1._public;
-					modifier2 = ModifierAccess2.none;
-					wasModifier = true;
-					break;
-				
-				// not a modifier access
-				default: break;
-			}
-			if (wasModifier) {
-				lineNumber++;
-				continue;
-			}
-			
 			bool isConstructor = false;
-			if (startsWith(line, "~this(") && endsWith(line, ":")) { // destructor ...
-				line = "task free_" ~ line[1 .. $]; // makes it valid for parsing ...
-				source[lineNumber] = line;
-				isConstructor = true;
-			}
+			
+			
+			string parserName = "struct";
+			mixin ParseHandler!(ParserType._struct);
+			auto res = handleParser(lineNumber); // uses lineNumber ...
+			if (res == CONTINUE)
+				continue;
+			else if (res == BREAK)
+				break;
+			else if (res == RETURN)
+				return;
+			// else if (res == NOTHING)
 			
 			// Splits the current line by space ... " "
 			scope auto lineSplit = split(line, " ");

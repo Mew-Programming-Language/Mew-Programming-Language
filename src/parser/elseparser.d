@@ -1,5 +1,5 @@
 /*
-	This module is for parsing mew tasks.
+	This module is for parsing else statements.
 	
 	Authors:
 		Jacob Jensen / Bauss
@@ -7,7 +7,7 @@
 		Apache License 2.0
 		https://github.com/Mew-Programming-Language/Mew-Programming-Language/blob/master/LICENSE
 */
-module parser.taskparser;
+module parser.elseparser;
 
 // Std Imports
 import std.string : format;
@@ -30,20 +30,24 @@ import parser.types.tasktype;
 import parser.types.expressions;
 
 /**
-*	Task parser.
+*	Else parser.
 */
-class TaskParser {
+class ElseParser {
 private:
 	/**
 	*	The task.
 	*/
 	Task m_task;
+	/**
+	*	The expression.
+	*/
+	string[] m_expression;
 public:
 	/**
-	*	Creates a new instance of TaskParser.
+	*	Creates a new instance of IfParser.
 	*/
-	this() {
-		// Reserved for future use ...
+	this(Task task) {
+		m_task = task;
 	}
 	
 	@property {
@@ -51,10 +55,15 @@ public:
 		*	Gets the task.
 		*/
 		Task task() { return m_task; }
+		
+		/**
+		*	Gets the expression.
+		*/
+		string[] expression() { return m_expression; }
 	}
 	
 	/**
-	*	Parses a task.
+	*	Parses an else statement.
 	*	Params:
 	*		fileName =			The file name.
 	*		lineNumber =		(ref) The current line.
@@ -66,9 +75,11 @@ public:
 		Variable[string] inheritedVariables, Task[string] inheritedTasks, Module mod, ModifierAccess1 modifier1, ModifierAccess2 modifier2, bool isConstructor = false, ParentType parent = null) {
 		// Parsing scope settings
 		bool foundEndStatement = false;
-		bool foundReturnStatement = false;
+		bool foundReturnStatement = false; // Ignored and only used to parse "return" properly.
 		bool inMultiLineComment = false;
 		bool resetAttributes = false;
+		bool parsedIf = false;
+		bool doneParsing = false;
 		string[string] aliases;
 		// Sets the inherited aliases.
 		foreach (k, v; ialiases)
@@ -78,9 +89,17 @@ public:
 		while (lineNumber < source.length) {
 			string line = strip(source[lineNumber], '\0');
 			
-			string parserName = "task";
-			mixin ParseHandler!(ParserType._task);
+			string nextLine;
+			if (lineNumber < (source.length - 1)) {
+				nextLine = strip(source[lineNumber + 1], '\0');
+				nextLine = strip(nextLine, '\t');
+				nextLine = strip(nextLine, ' ');
+				nextLine = strip(nextLine, '\r');
+			}
+			string parserName = "else";
+			mixin ParseHandler!(ParserType._else);
 			auto res = handleParser(lineNumber); // uses lineNumber ...
+			import std.stdio;
 			if (res == CONTINUE)
 				continue;
 			else if (res == BREAK)
@@ -99,40 +118,9 @@ public:
 					break;
 				}
 				
-				case "task": {
-					if (m_task) {
-						reportError(fileName, lineNumber, "Invalid Task Syntax", "Nested tasks are disallowed.");
-						return;
-					}
-					scope auto tokenized = tokenizeTask(fileName, lineNumber, line, mod.structs.keys, mod.classes.keys, null);
-					
-					auto name = tokenized[0];
-					if (!name)
-						break;
-					if (!validName(name, isConstructor)) {
-						reportError(fileName, lineNumber, "Invalid Name", "Invalid task name. Make sure it's A-Z and doesn't conflic with keywords.");
-						return;
-					}
-					auto returnType = tokenized[1];
-					
-					auto parameters = tokenized[2];	
-
-					Variable[] params;
-					foreach (param; parameters) {
-						import parser.variableparser;
-						scope auto variableParser = new VariableParser!Variable;
-						variableParser.parse2(param, fileName, lineNumber, line, null, ModifierAccess1._private, ModifierAccess2.none);
-						if (variableParser.var) {
-							params ~= variableParser.var;
-						}
-					}
-					
-					if (mod.name == "main" && name == "main" && params) {
-						reportError(fileName, lineNumber, "Invalid Params", "Main task cannot take parameters.");
-						return; // only allow void parameters atm. do args later ...
-					}
-					
-					m_task = new Task(name, returnType, params, attributes, inheritedVariables, inheritedTasks, modifier1, modifier2, parent);
+				case "if": {
+					mixin IfStatement;
+					handleIfStatement();
 					break;
 				}
 				
@@ -140,14 +128,6 @@ public:
 					mixin ReturnStatement;
 					if (!handleReturnStatement())
 						return;
-					break;
-				}
-				
-				case "if": {
-					mixin IfStatement;
-					handleIfStatement();
-					//if (!handleIfStatement())
-					//	return;
 					break;
 				}
 				
@@ -163,15 +143,9 @@ public:
 		// There was no ending statement found and it reached the end of the file ...
 		if (!foundEndStatement) {
 			if (m_task)
-				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing ')' for task '%s'", m_task.name));
+				reportError(fileName, lineNumber, "Invalid Else Syntax", format("Missing ')' for else statement in '%s'", m_task.name));
 			else
-				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
-		}
-		else if (!foundReturnStatement && m_task.returnType && m_task.returnType != "void") {
-			if (m_task)
-				reportError(fileName, lineNumber, "Invalid Task Syntax", format("Missing return for task '%s'", m_task.name));
-			else
-				reportError(fileName, lineNumber, "Invalid Task Syntax", "Task parsed incorrectly.");
+				reportError(fileName, lineNumber, "Invalid Else Syntax", "If statement parsed incorrectly.");
 		}
 	}
 }

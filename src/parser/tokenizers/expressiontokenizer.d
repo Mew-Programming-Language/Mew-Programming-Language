@@ -30,7 +30,7 @@ import errors.report;
 alias AExpressionTuple = Tuple!(string,string,string,bool,string[]);
 
 /**
-*	Enumeration of LOR operators.
+*	Enumeration of LOR (set) operators.
 */
 private enum AOperators1 = [
 	// set
@@ -42,14 +42,37 @@ private enum AOperators1 = [
 ];
 
 /**
+*	Enumeration of LOR (cmp) operators.
+*/
+private enum AOperators2 = [
+	// equal
+	"==",
+	// not equal
+	"!=",
+	// above or equal
+	">=",
+	// below or equal
+	"<=",
+	// above
+	">",
+	// below
+	"<"
+	// is the same type
+	"is",
+	// is not the same type
+	"!is"
+];
+
+/**
 *	Tokenizes an expression. (leftHand, operator, rightHand)
 *	Params:
 *		fileName =		The file name.
 *		lineNumber =	The current line.
 *		input =			The input to tokenize.
+*		operators =		The operators to proceed with.
 *	Returns: Expression tuple for the expression.
 */
-auto tokenizeExpression1(string fileName, size_t lineNumber, string input) {
+auto tokenizeExpression1(string fileName, size_t lineNumber, string input, string[] operators) {
 	AExpressionTuple errorReturn;
 	errorReturn[0] = null;
 	errorReturn[1] = null;
@@ -62,7 +85,7 @@ auto tokenizeExpression1(string fileName, size_t lineNumber, string input) {
 		return errorReturn;
 	}
 	
-	if (!canFind(AOperators1, expData[1])) {
+	if (!canFind(operators, expData[1])) {
 		return errorReturn;
 	}
 	
@@ -115,7 +138,7 @@ auto tokenizeExpression1(string fileName, size_t lineNumber, string input) {
 /**
 *	Enumeration of LO operators.
 */
-private enum AOperators2 = [
+private enum AOperators3 = [
 	"++", "--"
 ];
 
@@ -143,7 +166,7 @@ auto tokenizeExpression2(string fileName, size_t lineNumber, string input) {
 	
 	string name = input[0 .. $-2];
 	string op = input[$-2 .. $];
-	if (!canFind(AOperators2, op)) {
+	if (!canFind(AOperators3, op)) {
 		return errorReturn;
 	}
 	
@@ -151,4 +174,19 @@ auto tokenizeExpression2(string fileName, size_t lineNumber, string input) {
 	expression[0] = name;
 	expression[1] = op;
 	return expression;
+}
+
+/**
+*	Tokenizes an expression. (leftHand, operator, rightHand)
+*	Params:
+*		fileName =		The file name.
+*		lineNumber =	The current line.
+*		input =			The input to tokenize.
+*	Returns: Expression tuple for the expression.
+*/
+auto tokenizeExpression3(bool isCompare)(string fileName, size_t lineNumber, string input) {
+	static if (isCompare)
+		return tokenizeExpression1(fileName, lineNumber, input, AOperators2);
+	else
+		return tokenizeExpression1(fileName, lineNumber, input, AOperators1);
 }

@@ -24,3 +24,4 @@ public import parser.tokenizers.structtokenizer;
 public import parser.tokenizers.classtokenizer;
 public import parser.tokenizers.expressiontokenizer;
 public import parser.tokenizers.returntokenizer;
+public import parser.tokenizers.iftokenizer;

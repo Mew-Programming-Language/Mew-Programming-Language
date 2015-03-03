@@ -29,7 +29,7 @@ int main(string[] _args) {
 		// MewProject is a test project for testing the language and its compilation.
 		
 		// Parsing the compiler arguments.
-		foreach (arg; parseArguments(_args ~ ["-proj MewProject -out MewTest.exe -mlib"])) {// -ptypes"])) {
+		foreach (arg; parseArguments(_args ~ ["-proj C:\\Users\\mor\\Documents\\dprojects\\Mew\\src\\out\\MewProject -out MewTest.exe -mlib"])) {// -ptypes"])) {
 			if (arg)
 				handleArguments(arg);
 		}
@@ -83,6 +83,10 @@ int main(string[] _args) {
 											fwrite(projectFolder ~ "/out" ~ "/" ~ split(outputFileName, ".")[0] ~ ".mlib", mlibText);
 										}
 									}
+									
+									import ccompiler.compilers;
+									loadCompilers();
+									return compileProject();
 								}
 							}
 						}

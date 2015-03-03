@@ -20,6 +20,7 @@ import modules.naming;
 import modules.sources;
 import parser.tokenizers.tokenizercore;
 import parser.namevalidator;
+import parser.parserhandlers;
 
 // Type Related Imports
 import parser.types.typecore;
@@ -155,113 +156,23 @@ public:
 		ModifierAccess2 modifier2 = ModifierAccess2.none;
 		
 		// Loops through the source by its lines
-		while (m_line < m_source.length) {
+		while (m_line < m_source.length) {	
 			string line = strip(m_source[m_line], '\0');
-			line = strip(line, '\t');
-			line = strip(line, ' ');
-			line = strip(line, '\r');
-			if (!line || !line.length) {
-				m_line++;
-				continue;
-			}
 			
-			// Checks for single line comment
-			if (line[0] == '#') {
-				m_line++;
+			string parserName = "module";
+			mixin ParseHandler!(ParserType._module);
+			auto res = handleParser(m_line); // uses lineNumber ...
+			if (res == CONTINUE)
 				continue;
-			}
+			else if (res == BREAK)
+				break;
+			else if (res == RETURN)
+				return;
+			// else if (res == NOTHING)
 			
-			// Checks for multi line comment
-			if (inMultiLineComment) {
-				if (line == "+/")
-					inMultiLineComment = false;
-				m_line++;
-				continue;
-			}
-			else if (line == "/+") {
-				inMultiLineComment = true;
-				m_line++;
-				continue;
-			}
-			
-			// Attribute handling
-			if (resetAttributes)
-				attributes = null;
-				
-			if (line[0] == '@') {
-				attributes ~= line;
-				m_line++;
-				resetAttributes = false;
-				continue;
-			}
-			else
-				resetAttributes = true;
-			
-			// Checks if the line is the module aliasing ...
-			if (line == "module " ~ m_module.name) {
-				m_line++;
-				continue;
-			}
-			
-			// Replaces alias expressions
-			foreach (k, v; aliases) {
-				line = replace(line, k, v); // store information about alias + line later to report errors that are based on aliases
-			}
-			
-			bool wasModifier = false;
-			switch (line) {
-				// ModifierAccess1
-				case "public:":
-					modifier1 = ModifierAccess1._public;
-					wasModifier = true;
-					break;
-				case "protected:":
-					modifier1 = ModifierAccess1._protected;
-					wasModifier = true;
-					break;
-				case "private:":
-					modifier1 = ModifierAccess1._private;
-					wasModifier = true;
-					break;
-				case "personal:":
-					modifier1 = ModifierAccess1._personal;
-					wasModifier = true;
-					break;
-					
-				// ModifierAccess2
-				case "none:":
-					modifier2 = ModifierAccess2.none;
-					wasModifier = true;
-					break;
-				case "const:":
-					modifier2 = ModifierAccess2._const;
-					wasModifier = true;
-					break;
-				case "immutable:":
-					modifier2 = ModifierAccess2._immutable;
-					wasModifier = true;
-					break;
-				case "scope:":
-					modifier2 = ModifierAccess2._scope;
-					wasModifier = true;
-					break;
-				
-				// Clear
-				case "clear:":
-					modifier1 = ModifierAccess1._public;
-					modifier2 = ModifierAccess2.none;
-					wasModifier = true;
-					break;
-				
-				// not a modifier access
-				default: break;
-			}
-			if (wasModifier) {
-				m_line++;
-				continue;
-			}
 			// Splits the current line by space ... " "
 			scope auto lineSplit = split(line, " ");
+		
 			
 			switch (lineSplit[0]) {
 				case "alias": {
